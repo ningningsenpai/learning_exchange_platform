@@ -32,7 +32,6 @@ const bookSortByAllApi = '/api/getBookSortByAll'
 const otherBookSortByAllApi = '/api/getOtherBookSortByAll'
 const bookSortByPriceApi = '/api/getBookSortByPrice'
 const otherBookSortByPriceApi = '/api/getOtherBookSortByPrice'
-const getRecommendBookApi = '/api/getRecommendBook'
 
 const book = {
   imageList: [],
@@ -105,7 +104,7 @@ const handleSecondSortClick = ()=>{
 const priceFilter = reactive({
   minPrice: '',
   maxPrice: '',
-  version: 7
+  version: 0
 })
 const handleNoteFilterChange = () => {
   search() 
@@ -124,7 +123,7 @@ const searchText = reactive({
 })
 const search = async() =>{
   const searchInfo = searchText.text
-  console.log(priceFilter.version)
+  console.log(pageSize, searchInfo, btnStatus.isNote, priceFilter.minPrice, priceFilter.maxPrice, priceFilter.version)
   try {
     if(btnStatus.first_type) {
       if(btnStatus.first_sort){
@@ -141,20 +140,6 @@ const search = async() =>{
     }
   } catch(error) {
     ElMessage.error('获取信息失败，请重试')
-  }
-}
-
-// 获取根据推荐算法的书籍信息
-const getRecommendBook = async () => {
-  try {
-    const response = await axios.get(getRecommendBookApi)
-    if (response.code == 1) {
-          books.bookList = response.data
-    } else {
-      ElMessage.error(response.msg)
-    }
-  } catch (error) {
-    ElMessage.error('获取推荐书籍信息失败，请重试')
   }
 }
 
@@ -255,6 +240,11 @@ const gotoDetail = (bookId) => {
     }
   })
 }
+
+onMounted(() => {
+  searchText.text = router.currentRoute.value.query.searchText
+  search()
+})
 
 </script>
 
