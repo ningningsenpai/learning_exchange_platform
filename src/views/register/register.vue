@@ -22,10 +22,10 @@
   const getCaptcha = async () => {
     try {
       const response = await axios.get('/api/captcha')
-      if(response.code == 1) {
+      if(response.data.code == 1) {
         form.codeImage = `data:image/jpeg;base64,${response.data.data.body}`
       } else {
-        ElMessage.error(response.msg)
+        ElMessage.error(response.data.msg)
       }
     } catch (error) {
       ElMessage.error('获取验证码失败，请重试')

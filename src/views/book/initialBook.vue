@@ -24,10 +24,10 @@ const getRecommendBookApi = '/api/getRecommendBook'
 const getRecommendBook = async () => {
   try {
     const response = await axios.get(getRecommendBookApi)
-    if (response.code == 1) {
-          books.bookList = response.data
+    if (response.data.code == 1) {
+          books.bookList = response.data.data
     } else {
-      ElMessage.error(response.msg)
+      ElMessage.error(response.data.msg)
     }
   } catch (error) {
     ElMessage.error('获取推荐书籍信息失败，请重试')

@@ -156,10 +156,10 @@ const getBookSortByAll = async (pageSize, searchInfo, isNote, minPrice, maxPrice
         version
       }
     })
-    if (response.code == 1) {
-          books.bookList = response.data
+    if (response.data.code == 1) {
+          books.bookList = response.data.data
     } else {
-      ElMessage.error(response.msg)
+      ElMessage.error(response.data.msg)
     }
   } catch (error) {
     ElMessage.error('获取教材排序信息失败，请重试')
@@ -178,10 +178,10 @@ const getOtherBookSortByAll = async (pageSize, searchInfo, isNote, minPrice, max
         version
       }
     })
-    if (response.code == 1) {
-          books.bookList = response.data
+    if (response.data.code == 1) {
+          books.bookList = response.data.data
     } else {
-      ElMessage.error(response.msg)
+      ElMessage.error(response.data.msg)
     }
   } catch (error) {
     ElMessage.error('获取课外书排序信息失败，请重试')
@@ -200,10 +200,10 @@ const getBookSortByPrice = async (pageSize, searchInfo, isNote, minPrice, maxPri
         version
       }
     })
-    if (response.code == 1) {
-          books.bookList = response.data
+    if (response.data.code == 1) {
+          books.bookList = response.data.data
     } else {
-      ElMessage.error(response.msg)
+      ElMessage.error(response.data.msg)
     }
   } catch (error) {
     ElMessage.error('获取教材价格排序信息失败，请重试')
@@ -222,10 +222,10 @@ const getOtherBookSortByPrice = async (pageSize, searchInfo, isNote, minPrice, m
         version
       }
     })
-    if (response.code == 1) {
-          books.bookList = response.data
+    if (response.data.code == 1) {
+          books.bookList = response.data.data
     } else {
-      ElMessage.error(response.msg)
+      ElMessage.error(response.data.msg)
     }
   } catch (error) {
     ElMessage.error('获取课外书价格排序信息失败，请重试')

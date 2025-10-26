@@ -38,8 +38,8 @@ const getBookInfoById = async () => {
         bookId: bookId.value
       }
     })
-    if (response.code === 1 && response.data) {
-      Object.assign(bookInfo, response.data)
+    if (response.data.code === 1 && response.data.data) {
+      Object.assign(bookInfo, response.data.data)
     }
   } catch (error) {
     console.error('获取书籍信息失败:', error)
