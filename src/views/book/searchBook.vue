@@ -40,6 +40,7 @@ const book = {
   version: '',
   publisher: '',
   price: 0,
+  number: 2,
   isNote: false,
   label: [],
   seller: '',

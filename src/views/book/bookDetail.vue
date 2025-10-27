@@ -8,6 +8,7 @@ const bookId = ref(route.query.bookId)
 // 根据id获取书籍详情
 
 const bookInfo = reactive({
+  id: 1,
   imageList: [
     'src/static/1.jpg',
     'src/static/2.jpg',
@@ -20,6 +21,7 @@ const bookInfo = reactive({
   version: '第七版',
   publisher: '人民出版社',
   price: 91.00,
+  number: 2,
   isNote: false,
   label: [
     "计算机",
@@ -65,29 +67,38 @@ const contactSeller = () => {
 
 // 加入购物车跳转确认界面事件绑定
 // 添加数量控制变量
-const quantity = ref(1) 
+const quantity = ref(1)
 const decreaseQuantity = () => {
   if (quantity.value > 1) {
     quantity.value--
+  } else {
+    ElMessage.error('最少添加数量为1')
   }
 }
 const increaseQuantity = () => {
-  quantity.value++
+  if (quantity.value < bookInfo.number) {
+    quantity.value++
+  } else {
+    ElMessage.error('最多添加数量为' + bookInfo.number)
+  }
 }
-
 const centerDialogVisible = ref(false)
-const addToCart = () => {
-  // 重置数量
+// 添加购物车
+const addToCart = async() => {
+  // 重置弹窗显示和初始显示数量
   centerDialogVisible.value = false
   quantity.value = 1
-
-  router.push({
-    path: '/shoppingCar',
-    query: {
-      bookId: bookId.value,
-      quantity: quantity.value
-    }
+  // 将书籍id和数量添加到购物车
+  const addToCartApi = '/api/addToShoppingCarById'
+  const response = await axios.post(addToCartApi, {
+    bookId: bookInfo.id,
+    number: quantity.value
   })
+  if (response.data.code === 1) {
+    ElMessage.success('加入购物车成功')
+  } else {
+    ElMessage.error('加入购物车失败')
+  }
 }
 
 </script>
@@ -125,6 +136,7 @@ const addToCart = () => {
       <div class="book-price">价格: ¥{{ bookInfo.price.toFixed(2) }}</div>
       <span class="book-remark">备注信息：</span>
       <div class="book-other-info">
+        <span>库存数量：{{ bookInfo.number }}</span>
         <span>是否有注释：{{ bookInfo.isNote ? '是' : '否' }}</span>
       </div>
       <div class="seller-info">

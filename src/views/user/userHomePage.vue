@@ -1,136 +1,167 @@
 <script setup>
-  import axios from 'axios'
-  import { ElMessage } from 'element-plus'
-  import { onMounted, reactive, ref } from 'vue'
+import axios from 'axios'
+import { ElMessage } from 'element-plus'
+import { onMounted, reactive, ref } from 'vue'
 
-  // 用户信息获取
-  const userInfoApi = '/api/getUserInfo'
-  const userInfoForm = reactive({
-    username: 'ikun',
-    avatar: 'src/static/image.png',
-    grade: '大三',
-    major: '计算机科学与技术',
-    user_introduction: '哈哈哈哈'
-  })
-  const getUserInfo = async() => {
-    const response = await axios.get(userInfoApi)
-    return response.data
-  }
-  function setUserInfo() {
-    const response = getUserInfo()
-    try {
-      if(response.code == 1) {
-        const userData =response.data
-        Object.keys(userInfoForm).forEach(key => {
-        if (userData[key] !== undefined) {
-          userInfoForm[key] = userData[key];
-        }
-      });
-        ElMessage.success(response.msg)
-      } else {
-        ElMessage.error(response.msg)
+// 用户信息获取
+const userInfoApi = '/api/getUserInfo'
+const userInfoForm = reactive({
+  username: 'ikun',
+  avatar: 'src/static/image.png',
+  grade: '大三',
+  major: '计算机科学与技术',
+  user_introduction: '哈哈哈哈'
+})
+const getUserInfo = async() => {
+  const response = await axios.get(userInfoApi)
+  try {
+    if(response.data.code == 1) {
+      const userData =response.data.data
+      Object.keys(userInfoForm).forEach(key => {
+      if (userData[key] !== undefined) {
+        userInfoForm[key] = userData[key];
       }
-    } catch (error) {
-      ElMessage.error(error.message)
-    }
-  }
-  // onMounted(() => {
-  //   setUserInfo()
-  // })
-
-  //传输修改后的用户信息
-  const updateUserInfoApi = '/api/updateUserInfo'
-  const updateUserInfo = async(formData) => {
-    const response = await axios.post(updateUserInfoApi, qs.stringify(formData),{
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      }
-    })
-    return response.data
-  }
-  const updateUserInfoSubmit = async() => {
-    const response = await updateUserInfo(userInfoForm)
-    try {
-      if(response.code == 1) {
-        ElMessage.success(response.msg)
-        setUserInfo()
-      } else {
-        ElMessage.error(response.msg)
-      }
-    } catch (error) {
-      ElMessage.error(error.message)
-    }
-  }
-
-
-  // 收货信息获取
-  const addressApi = '/api/getShippingAddressByUserId'
-  const addressForm = reactive({
-    shoppingAddressId: [
-      1,
-      2,
-      4
-    ],
-    shoppingAddress: [
-      '中国 河南省 郑州市 中原区 111111',
-      '中国 河南省 郑州市 中原区 222222',
-      '中国 河南省 郑州市 中原区 444444'
-    ],
-    priority: [
-      0,
-      0,
-      1
-    ]
-  })
-  const getAddress = async() => {
-    const response = await axios.get(addressApi)
-    return response.data
-  }
-  function setAddress() {
-    const response = getAddress()
-    try {
-      if(response.code == 1) {
-        const addressData =response.data
-        Object.keys(addressForm).forEach(key => {
-        if (addressData[key] !== undefined) {
-          addressForm[key] = addressData[key];
-        }
-      });
-        ElMessage.success(response.msg)
-      } else {
-        ElMessage.error(response.msg)
-      }
-    } catch (error) {
-      ElMessage.error(error.message)
-    }
-  }
-
-  // 选择默认地址
-  const getDefaultAddress = () => {
-    const defaultIndex = addressForm.priority.indexOf(1)
-    if (defaultIndex !== -1) {
-      return addressForm.shoppingAddress[defaultIndex]
+    });
+      ElMessage.success(response.data.msg)
     } else {
-      return addressForm.shoppingAddress[0]
+      ElMessage.error(response.data.msg)
     }
+  } catch (error) {
+    ElMessage.error('获取用户信息失败')
   }
+}
 
-  // onMounted(() => {
-  //   setAddress()
-  // })
+//传输修改后的用户信息
+const updateUserInfoApi = '/api/updateUserInfo'
+const updateUserInfo = async(formData) => {
+  const response = await axios.post(updateUserInfoApi, qs.stringify(formData),{
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    }
+  })
+  return response.data
+}
+const updateUserInfoSubmit = async() => {
+  const response = await updateUserInfo(userInfoForm)
+  try {
+    if(response.code == 1) {
+      ElMessage.success(response.data.msg)
+      getUserInfo()
+    } else {
+      ElMessage.error(response.data.msg)
+    }
+  } catch (error) {
+    ElMessage.error('更新用户信息失败')
+  }
+}
 
-  // 添加收货地址
+
+// 收货信息获取
+const addressApi = '/api/getShippingAddressByUserId'
+const addressForm = reactive({
+  addressInfo: [
+    {
+      shoppingAddressId: 1,
+      shoppingAddress: '中国 河南省 郑州市 中原区 111111',
+      priority: 0
+    },
+    {
+      shoppingAddressId: 2,
+      shoppingAddress: '中国 河南省 郑州市 中原区 222222',
+      priority: 0
+    },
+    {
+      shoppingAddressId: 4,
+      shoppingAddress: '中国 河南省 郑州市 中原区 444444',
+      priority: 1
+    },
+  ]
+})
+const getAddress = async() => {
+  const response = await axios.get(addressApi)
+  try {
+    if(response.data.code == 1) {
+      addressForm.addressInfo = response.data.data
+      ElMessage.success(response.data.msg)
+    } else {
+      ElMessage.error(response.data.msg)
+    }
+  } catch (error) {
+    ElMessage.error('获取收货地址失败')
+  }
+}
+
+// 默认地址判断
+const getDefaultAddress = () => {
+  if(addressForm.addressInfo.length == 0) {
+    return null
+  }
+  const defaultIndex = addressForm.addressInfo.findIndex(item => item.priority == 1)
+  if (defaultIndex !== -1) {
+    return addressForm.addressInfo[defaultIndex].shoppingAddress
+  } else {
+    return addressForm.addressInfo[0].shoppingAddress
+  }
+}
+
+// 获取用户默认收货时间
+const timeApi = '/api/getDefaultShippingTimeByUserId'
+const timeForm = reactive({
+  ShippingTime: 2
+})
+const getTime = async() => {
+  const response = await axios.get(timeApi)
+  try {
+    if(response.data.code == 1) {
+      timeForm.ShippingTime = response.data.data
+      ElMessage.success(response.data.msg)
+    } else {
+      ElMessage.error(response.data.msg)
+    }
+  } catch (error) {
+    ElMessage.error('获取用户默认收货时间失败')
+  }
+}
+
+onMounted(() => {
+  getUserInfo()
+  getAddress()
+  getTime()
+})
 
 
-  // 更新收货地址
+// 添加收货地址
+const addAddressApi = '/api/addShippingAddress'
+const isCheckDefaultAddress = ref(false)
+const addAddressForm = reactive({
+  shoppingAddress: '',
+  // 判断是否设置为默认
+  priority: isCheckDefaultAddress.value ? 1 : 0
+})
+const addAddressSubmit = async() => {
+  const response = await axios.post(addAddressApi, qs.stringify(addAddressForm),{
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    }
+  })
+  if(response.data.code == 1) {
+    ElMessage.success(response.data.msg)
+    getAddress()
+  } else {
+    ElMessage.error(response.data.msg)
+  }
+}
+// 更新收货地址
 
 
-  // 删除收货地址
+// 删除收货地址
+
+// 更新用户默认收货时间
 
 
-  // 弹窗相关设置
-  // 编辑用户信息弹窗
-  const centerDialogVisible = ref(false)
+// 弹窗相关设置
+// 编辑用户信息弹窗
+const centerDialogVisible = ref(false)
 
 </script>
 
@@ -174,7 +205,12 @@
             <span>收货信息</span>
          </el-col>
          <el-col :span="8" class="goodsInfo-show">
-            <span @click="addressDialogVisible = true">收货地址：{{getDefaultAddress()}}</span>
+            <div v-if="!getDefaultAddress()">
+              <span>收货地址：暂无收货地址</span>
+            </div>
+            <div v-else>
+              <span>收货地址：{{getDefaultAddress()}}</span>
+            </div>
             <span>收货时间：{{addressForm.shoppingTime}}</span>
          </el-col>
          <!-- 编辑用户信息 -->

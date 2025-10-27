@@ -12,6 +12,7 @@ const book = {
   version: '第2版',
   publisher: '清华大学出版社',
   price: 99.00,
+  number: 2,
   isNote: false,
   label: ['Vue.js', '前端开发'],
   seller: '张三',
