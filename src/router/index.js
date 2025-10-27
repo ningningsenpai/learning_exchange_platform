@@ -8,11 +8,12 @@ import searchBookView from '@/views/book/searchBook.vue';
 import InitialForumView from '@/views/forum/initialForum.vue';
 import InitialNewsView from '@/views/news/initialNews.vue';
 import ShoppingCarView from '@/views/shoppingCar/shoppingCar.vue';
-import BuyOrdersView from '@/views/orders/buyOrders.vue';
-import SellOrdersView from '@/views/orders/sellOrders.vue';
+import BuyAndSoldOrdersView from '@/views/orders/buyAndSoldOrders.vue';
 import UserHomePageView from '@/views/user/userHomePage.vue';
 import BookDetailView from '@/views/book/bookDetail.vue';
 import InitialBookView from '@/views/book/initialBook.vue';
+import SoldOrderDetailView from '@/views/orders/soldOrderDetail.vue';
+import buyOrderDetailView from '@/views/orders/buyOrderDetail.vue';
 
 
 
@@ -29,11 +30,12 @@ const routes = [
       {path: 'initialForum', name: 'initialForum', component: InitialForumView},
       {path: 'initialNews', name: 'initialNews', component: InitialNewsView},
       {path: 'shoppingCar', name: 'shoppingCar', component: ShoppingCarView},
-      {path: 'buyOrders', name: 'buyOrders', component: BuyOrdersView},
-      {path: 'sellOrders', name: 'sellOrders', component: SellOrdersView},
+      {path: 'buyAndSoldOrders', name: 'buyAndSoldOrders', component: BuyAndSoldOrdersView},
       {path: 'userHomePage', name: 'userHomePage', component: UserHomePageView},
       {path: 'bookDetail', name: 'bookDetail', component: BookDetailView},
-      {path: 'initialBook', name: 'initialBook', component: InitialBookView}
+      {path: 'initialBook', name: 'initialBook', component: InitialBookView},
+      {path: 'soldOrderDetail', name: 'soldOrderDetail', component: SoldOrderDetailView},
+      {path: 'buyOrderDetail', name: 'buyOrderDetail', component: buyOrderDetailView}
     ]
   },
   {path: '/login', name: 'login', component: LoginView},
