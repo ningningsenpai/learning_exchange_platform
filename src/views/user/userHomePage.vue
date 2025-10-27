@@ -1,7 +1,7 @@
 <script setup>
 import axios from 'axios'
-import { ElMessage } from 'element-plus'
-import { onMounted, reactive, ref } from 'vue'
+import { ElCheckbox, ElMessage } from 'element-plus'
+import { onMounted, reactive, ref, watch } from 'vue'
 
 // 用户信息获取
 const userInfoApi = '/api/getUserInfo'
@@ -54,10 +54,12 @@ const updateUserInfoSubmit = async() => {
     ElMessage.error('更新用户信息失败')
   }
 }
+// 编辑用户信息弹窗
+const centerDialogVisible = ref(false)
 
 
 // 收货信息获取
-const addressApi = '/api/getShippingAddressByUserId'
+const addressApi = '/api/getShoppingAddressByUserId'
 const addressForm = reactive({
   addressInfo: [
     {
@@ -105,15 +107,15 @@ const getDefaultAddress = () => {
 }
 
 // 获取用户默认收货时间
-const timeApi = '/api/getDefaultShippingTimeByUserId'
+const timeApi = '/api/getDefaultShoppingTimeByUserId'
 const timeForm = reactive({
-  ShippingTime: 2
+  ShoppingTime: 2
 })
 const getTime = async() => {
   const response = await axios.get(timeApi)
   try {
     if(response.data.code == 1) {
-      timeForm.ShippingTime = response.data.data
+      timeForm.ShoppingTime = response.data.data
       ElMessage.success(response.data.msg)
     } else {
       ElMessage.error(response.data.msg)
@@ -130,38 +132,83 @@ onMounted(() => {
 })
 
 
-// 添加收货地址
-const addAddressApi = '/api/addShippingAddress'
-const isCheckDefaultAddress = ref(false)
+// 收货地址弹窗和相关接口
+const checkAddressDialogVisible = ref(false)
+const addAddressDialogVisible = ref(false)
+// 添加收货地址(可以设置默认地址)
+const addAddressApi = '/api/addShoppingAddress'
+const Add_isCheckDefaultAddress = ref(false)
 const addAddressForm = reactive({
   shoppingAddress: '',
   // 判断是否设置为默认
-  priority: isCheckDefaultAddress.value ? 1 : 0
+  priority: Add_isCheckDefaultAddress.value ? 1 : 0
+})
+// 添加watch监听，实现动态更新
+watch(Add_isCheckDefaultAddress, (newValue) => {
+  addAddressForm.priority = newValue ? 1 : 0
 })
 const addAddressSubmit = async() => {
-  const response = await axios.post(addAddressApi, qs.stringify(addAddressForm),{
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded'
+  // 将其他地址的优先级遍历为0
+  try {
+      if(addAddressForm.priority == 1){
+      addressForm.addressInfo.forEach(item => item.priority = 0)
     }
-  })
-  if(response.data.code == 1) {
-    ElMessage.success(response.data.msg)
-    getAddress()
-  } else {
-    ElMessage.error(response.data.msg)
+    const response = await axios.post(addAddressApi, qs.stringify(addAddressForm),{
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+    })
+    if(response.data.code == 1) {
+      ElMessage.success(response.data.msg)
+      // 刷新收货地址列表（与上述遍历优先级不冲突）
+      getAddress()
+    } else {
+      ElMessage.error(response.data.msg)
+    }
+  } catch (error) {
+    ElMessage.error('添加收货地址失败')
   }
 }
-// 更新收货地址
-
-
+// 通过id更新收货地址(可以设置默认地址)
+const updateAddressApi = '/api/updateShoppingAddress'
+const tempAddressInfo = reactive({
+  shoppingAddressId: 0,
+  shoppingAddress: '',
+  priority: 0
+})
+const Update_isCheckDefaultAddress = ref(false)
+// 添加watch监听，实现动态更新
+watch(Update_isCheckDefaultAddress, (newValue) => {
+  tempAddressInfo.priority = newValue ? 1 : 0
+})
+const updateAddressSubmit = async() => {
+  
+  try {
+    const response = await axios.post(updateAddressApi, qs.stringify(tempAddressInfo),{
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+    })
+    if(response.data.code == 1) {
+      ElMessage.success(response.data.msg)
+      getAddress()
+      // 恢复临时地址
+      tempAddressInfo.shoppingAddressId = 0
+      tempAddressInfo.shoppingAddress = ''
+      tempAddressInfo.priority = 0
+    } else {
+      ElMessage.error(response.data.msg)
+    }
+  } catch (error) {
+    ElMessage.error('更新收货地址失败')
+  }
+}
 // 删除收货地址
 
 // 更新用户默认收货时间
 
 
-// 弹窗相关设置
-// 编辑用户信息弹窗
-const centerDialogVisible = ref(false)
+
 
 </script>
 
@@ -206,13 +253,59 @@ const centerDialogVisible = ref(false)
          </el-col>
          <el-col :span="8" class="goodsInfo-show">
             <div v-if="!getDefaultAddress()">
-              <span>收货地址：暂无收货地址</span>
+              <span @click="checkAddressDialogVisible = true">收货地址：暂无收货地址</span>
             </div>
             <div v-else>
-              <span>收货地址：{{getDefaultAddress()}}</span>
+              <span @click="checkAddressDialogVisible = true">收货地址：{{getDefaultAddress()}}</span>
             </div>
             <span>收货时间：{{addressForm.shoppingTime}}</span>
          </el-col>
+         <!-- 编辑收货地址信息弹窗 -->
+          <!-- 收货地址信息展示弹窗 -->
+          <el-dialog
+            v-model="checkAddressDialogVisible"
+            title="收货地址"
+            width="40%"
+          >
+            <div class="address-change">
+              <div v-if="addressForm.addressInfo.length == 0">
+                <span>暂无收货地址</span>
+              </div>
+              <div v-else>
+                <span>收货地址：</span>
+                <div class="default-address-show">
+                  <div v-if="getDefaultAddress()" @click="Update_isCheckDefaultAddress = true">
+                    <span>默认地址</span>
+                    {{getDefaultAddress()}}
+                  </div>
+                </div>
+                <div class="notDefault-address-show">
+                  <div v-for="item in addressForm.addressInfo" :key="item.shoppingAddressId" @click="Update_isCheckDefaultAddress = false">
+                    <span v-if="item.priority == 0">{{item.shoppingAddress}}</span>
+                  </div>
+                </div>
+              </div>
+              <button @click="addAddressDialogVisible = true">新建收货地址</button>
+            </div>
+          </el-dialog>
+          <!-- 新建收货地址弹窗 -->
+          <el-dialog
+            v-model="addAddressDialogVisible"
+            title="新建收货地址"
+            width="40%"
+          >
+            <input type="text" v-model="addAddressForm.shoppingAddress" placeholder="请输入收货地址">
+            <el-checkbox v-model="Add_isCheckDefaultAddress" label="1">默认地址</el-checkbox>
+          </el-dialog>
+          <!-- 编辑收货地址弹窗 -->
+          <el-dialog
+            v-model="updateAddressDialogVisible"
+            title="编辑收货地址"
+            width="40%"
+          >
+            <input type="text" v-model="tempAddressInfo.shoppingAddress" placeholder="请输入收货地址">
+            <el-checkbox v-model="Update_isCheckDefaultAddress" label="1">默认地址</el-checkbox>
+          </el-dialog>
          <!-- 编辑用户信息 -->
          <el-col :span="3" style="display: flex; justify-content: center; align-items: center;">
             <el-button class="change-button" @click="centerDialogVisible = true">编辑信息</el-button>
