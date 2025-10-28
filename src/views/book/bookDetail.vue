@@ -44,7 +44,7 @@ const getBookInfoById = async () => {
       Object.assign(bookInfo, response.data.data)
     }
   } catch (error) {
-    console.error('获取书籍信息失败:', error)
+    console.error('获取书籍信息失败:')
   }
 }
 

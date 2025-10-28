@@ -4,6 +4,25 @@ import { ElMessage, ElRow, ElCol } from 'element-plus';
 import axios from 'axios';
 import router from '@/router'
 
+// 订单信息字段
+const orderDetail = {
+  orderTime: '2023-12-12 12:00:00',
+  orderId: '1234567890',
+  paymentWay: '支付宝',
+  image: 'src/static/1.jpg',
+  bookId: 1,
+  bookName: 'Vue 从入门到精通',
+  author: '张三',
+  publisher: '清华大学出版社',
+  price: 99.99,
+  bookCount: 2,
+  userName: '李四',
+  address: '北京市海淀区',
+  orderStatus: '已完成',
+  completeTime: '',
+  sellerId: 1
+}
+
 // 购买订单和售出订单切换按钮
 const orderInfoChangeBtn = reactive({ 
   buyOrder: true, 
@@ -12,7 +31,7 @@ const orderInfoChangeBtn = reactive({
 
 // 订单列表数据
 const orderList = reactive({ 
-  detailList: [] 
+  detailList: [orderDetail, orderDetail, orderDetail, orderDetail] 
 })
 const getBuyOrdersApi = '/api/getBuyOrders'
 const getSoldOrdersApi = '/api/getSoldOrders'
@@ -53,6 +72,29 @@ const search = () => {
     timeFilter: orderFilter.timeFilter,
     statusFilter: orderFilter.statusFilter
   });
+}
+
+// 订单状态类名映射（css修饰使用）
+const getStatusClass = (status) => {
+  switch (status) {
+    case '已支付':
+      return 'status-paid';
+    case '已完成':
+      return 'status-completed';
+    case '已取消':
+      return 'status-cancelled';
+    default:
+      return 'status-default';
+  }
+}
+const goToPath = orderInfoChangeBtn.buyOrder ? '/buyOrderDetail' : '/soldOrderDetail'
+const orderDetailClick = (choosePath, orderId) => {
+  router.push({
+    path: choosePath,
+    query: {
+      orderId: orderId
+    }
+  })
 }
 
 </script>
@@ -126,7 +168,7 @@ const search = () => {
           </div>
         </el-col>
         <!-- 表头列 -->
-        <el-col :span="8" class="table-header-col title-col">
+        <el-col :span="9" class="table-header-col title-col">
           订单信息
         </el-col>
         <el-col :span="3" class="table-header-col">
@@ -143,7 +185,55 @@ const search = () => {
     
     <!-- 订单信息列表-->
     <div class="table-body">
-      
+      <div class="order-card" v-for="orderDetail in orderList.detailList" :key="orderDetail.orderId" @click="orderDetailClick(goToPath, orderDetail.orderId)">
+        <!-- 订单基本信息 -->
+        <div class="orderBase-info">
+          <span class="obi-text">交易时间：<span class="obi-value">{{ orderDetail.orderTime }}</span></span>
+          <span class="obi-text">订单编号：<span class="obi-value">{{ orderDetail.orderId }}</span></span>
+          <span class="obi-text">支付方式：<span class="obi-value">{{ orderDetail.paymentWay }}</span></span>
+        </div>
+        
+        <!-- 订单详情信息 -->
+        <div class="orderDetail-info">
+          <el-row class="order-row">
+            <!-- 书籍信息区域 -->
+            <el-col :span="10" class="book-info-section">
+              <div class="book-item">
+                <img :src="orderDetail.image" alt="" class="book-cover">
+                <div class="book-info">
+                  <h4 class="book-name">{{ orderDetail.bookName }}</h4>
+                  <p class="book-author">作者：{{ orderDetail.author }}</p>
+                  <p class="book-publisher">出版社：{{ orderDetail.publisher }}</p>
+                </div>
+              </div>
+            </el-col>
+            
+            <!-- 价格和数量列 -->
+            <el-col :span="5" class="order-col">
+              <span class="price-quantity">
+                <span class="highlight-price">¥{{ orderDetail.price }}</span>
+                <span class="quantity-separator"> × </span>
+                <span class="normal-quantity">{{ orderDetail.bookCount }}</span>
+              </span>
+            </el-col>
+            
+            <!-- 收货人信息 -->
+            <el-col :span="3" class="order-col">
+              <span class="odi-value">{{ orderDetail.userName }}</span>
+            </el-col>
+            
+            <!-- 总金额 -->
+            <el-col :span="3" class="order-col">
+              <span class="odi-value total-amount">¥{{ orderDetail.price * orderDetail.bookCount }}</span>
+            </el-col>
+            
+            <!-- 订单状态 -->
+            <el-col :span="3" class="order-col">
+              <span class="status-badge" :class="getStatusClass(orderDetail.orderStatus)">{{ orderDetail.orderStatus }}</span>
+            </el-col>
+          </el-row>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -398,13 +488,242 @@ const search = () => {
   padding-right: 60px;
 }
 
-
-
-
 /* 表格主体样式 */
 .table-body {
   flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+/* 订单卡片样式 */
+.order-card {
   background-color: white;
+  border: 1px solid #e8e8e8;
+  border-radius: 6px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  transition: all 0.3s ease;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.order-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+  border-color: #42b983;
+}
+
+/* 订单基本信息样式 */
+.orderBase-info {
+  padding: 12px 16px;
+  background-color: #fafafa;
+  border-bottom: 1px solid #e8e8e8;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.obi-text {
+  font-size: 12px;
+  color: #666;
+}
+
+.obi-value {
+  font-size: 12px;
+  color: #333;
+  font-weight: 500;
+}
+
+/* 订单详情信息样式 */
+.orderDetail-info {
+  padding: 16px;
+}
+
+.order-row {
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+/* 书籍信息区域 */
+.book-info-section {
+  display: flex;
+  align-items: center;
+  padding-right: 16px;
+}
+
+.book-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.book-cover {
+  width: 60px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.book-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.book-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.book-author {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 2px;
+}
+
+.book-publisher {
+  font-size: 12px;
+  color: #666;
+}
+
+/* 价格和数量样式 */
+.price-quantity {
+  display: block;
+  text-align: center;
+  font-size: 14px;
+  color: #666;
+}
+
+.highlight-price {
+  font-size: 16px;
+  color: #ff6b6b;
+  font-weight: 600;
+}
+
+.quantity-separator {
+  font-size: 13px;
+  color: #666;
+}
+
+.normal-quantity {
+  font-size: 14px;
+  color: #666;
+}
+
+.price-quantity::before {
+  display: block;
+  font-size: 11px;
+  color: #999;
+  margin-bottom: 2px;
+}
+
+/* 订单列样式 */
+.order-col {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-left: 20px;
+  height: 100%;
+}
+
+.odi-value {
+  font-size: 13px;
+  color: #333;
+}
+
+.total-amount {
+  font-weight: 600;
+  color: #ff6b6b;
+  font-size: 14px;
+}
+
+/* 状态徽章样式 */
+.status-badge {
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.status-paid {
+  background-color: #e8f5e9;
+  color: #43a047;
+}
+
+.status-completed {
+  background-color: #e3f2fd;
+  color: #1976d2;
+}
+
+.status-cancelled {
+  background-color: #ffebee;
+  color: #d32f2f;
+}
+
+.status-default {
+  background-color: #f5f5f5;
+  color: #757575;
+}
+
+/* 响应式设计 */
+@media (max-width: 1200px) {
+  .orderBase-info {
+    gap: 12px;
+  }
+  
+  .book-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .book-cover {
+    width: 50px;
+    height: 68px;
+  }
+}
+
+@media (max-width: 768px) {
+  .table-body {
+    padding: 10px;
+  }
+  
+  .orderBase-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 10px 14px;
+  }
+  
+  .orderDetail-info {
+    padding: 14px;
+  }
+  
+  .order-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  .book-info-section,
+  .order-col {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  
+  .price-quantity::before {
+    text-align: left;
+  }
 }
 
 </style>
