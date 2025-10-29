@@ -102,6 +102,28 @@ const addToCart = async() => {
   }
 }
 
+// 购买相关事件
+const paymentDialogVisible = ref(false)
+// const confirmPayment = async () => {
+//   if (quantity.value > bookInfo.number) {
+//     ElMessage.error('购买数量不能超过库存数量')
+//     return
+//   }
+//   // 关闭弹窗
+//   paymentDialogVisible.value = false
+//   // 调用购买接口
+//   const buyApi = '/api/buyBookById'
+//   const response = await axios.post(buyApi, {
+//     bookId: bookInfo.id,
+//     number: quantity.value
+//   })
+//   if (response.data.code === 1) {
+//     ElMessage.success('购买成功')
+//   } else {
+//     ElMessage.error('购买失败')
+//   }
+// }
+
 </script>
 
 <template>
@@ -149,7 +171,7 @@ const addToCart = async() => {
 
       <div class="function-btn">
         <button @click="centerDialogVisible = true">加入购物车</button>
-        <button>购买</button>
+        <button @click="paymentDialogVisible = true">购买</button>
       </div>
 
       <!-- 加入购物车确认弹窗 -->
@@ -194,6 +216,45 @@ const addToCart = async() => {
           <button class="confirm-btn" @click="addToCart">确认加入购物车</button>
         </div>
       </el-dialog>
+
+      <!-- 购买确认弹窗 -->
+      <el-dialog
+        v-model="paymentDialogVisible"
+        title="购买确认"
+        width="500px"
+        class="payment-dialog"
+      >
+        <div class="dialog-content">
+          <img :src="bookInfo.imageList[0]" alt="" class="dialog-product-image">
+          <div class="dialog-book-name">{{ bookInfo.bookName }}</div>
+          <div class="dialog-book-details">
+            <span>作者：{{ bookInfo.author }}</span>
+            <span>版本：{{ bookInfo.version }}</span>
+            <span>出版社：{{ bookInfo.publisher }}</span>
+            <span>库存: {{ bookInfo.number }}</span>
+          </div>
+          
+          <div class="quantity-price-row">
+            <div class="dialog-price">价格: ¥{{ bookInfo.price.toFixed(2) }}</div>
+            <!-- 添加数量控制 -->
+            <div class="quantity-control">
+              <span>购买数量：</span>
+              <button class="quantity-btn" @click="decreaseQuantity">-</button>
+              <span class="quantity-number">{{ quantity }}</span>
+              <button class="quantity-btn" @click="increaseQuantity">+</button>
+            </div>
+          </div>
+          
+          <div class="dialog-total-price">
+            <span>总金额：¥{{ (bookInfo.price * quantity).toFixed(2) }}</span>
+          </div>
+        </div>
+        <div class="dialog-footer">
+          <button class="cancel-btn" @click="paymentDialogVisible = false">取消</button>
+          <button class="confirm-btn" @click="confirmPayment">确认购买</button>
+        </div>
+      </el-dialog>
+
     </el-col>
 
   </el-row>
@@ -395,11 +456,12 @@ const addToCart = async() => {
   display: flex;
   align-items: center;
   margin-top: auto;
+  font-size: 16px;
 }
 
 .quantity-btn {
-  width: 30px;
-  height: 30px;
+  width: 20px;
+  height: 20px;
   background-color: #f0f0f0;
   border: 1px solid #ddd;
   cursor: pointer;
@@ -415,9 +477,9 @@ const addToCart = async() => {
 }
 
 .quantity-number {
-  width: 60px;
-  height: 30px;
-  border: 1px solid #ddd;
+  width: 40px;
+  height: 20px;
+  border: 1px solid #ffffff;
   border-left: none;
   border-right: none;
   display: flex;
@@ -454,5 +516,97 @@ const addToCart = async() => {
 
 .confirm-btn:hover {
   background-color: #66b1ff;
+}
+
+/* 购买弹窗样式 */
+.payment-dialog .dialog-content {
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+}
+
+.payment-dialog .dialog-product-image {
+  width: 120px;
+  height: 160px;
+  object-fit: contain;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  margin: 0 auto 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.payment-dialog .dialog-book-name {
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 15px;
+  color: #333;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.payment-dialog .dialog-book-details {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.8;
+  padding: 0 10px;
+}
+
+.payment-dialog .dialog-book-details span {
+  margin-bottom: 5px;
+}
+
+
+.payment-dialog .quantity-price-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  padding: 10px;
+  background-color: #f5f7fa;
+  border-radius: 4px;
+}
+
+.payment-dialog .dialog-price {
+  font-size: 18px;
+  font-weight: bold;
+  color: #e60012;
+  margin-bottom: 0;
+  margin-left: 0;
+}
+
+.payment-dialog .quantity-control {
+  display: flex;
+  align-items: center;
+  font-size: 16px;
+}
+
+.payment-dialog .dialog-quantity {
+  font-size: 16px;
+  color: #333;
+  margin-bottom: 15px;
+  padding: 10px;
+  background-color: #f5f7fa;
+  border-radius: 4px;
+}
+
+.payment-dialog .dialog-total-price {
+  font-size: 18px;
+  font-weight: bold;
+  color: #e60012;
+  margin-bottom: 20px;
+  padding: 10px;
+  background-color: #fff2f0;
+  border-radius: 4px;
+  text-align: center;
+}
+
+.payment-dialog .dialog-footer {
+  display: flex;
+  justify-content: center;
+  padding: 10px 0;
+  border-top: 1px solid #eee;
 }
 </style>
