@@ -43,6 +43,7 @@ const book = {
   number: 2,
   isNote: false,
   label: [],
+  sellerId: 0,
   seller: '',
   sellerImage: ''
 }

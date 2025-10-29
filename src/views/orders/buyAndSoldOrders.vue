@@ -7,7 +7,7 @@ import router from '@/router'
 // 订单信息字段
 const orderDetail = {
   orderTime: '2023-12-12 12:00:00',
-  orderId: '1234567890',
+  orderId: 1234567890,
   paymentWay: '支付宝',
   image: 'src/static/1.jpg',
   bookId: 1,
@@ -18,7 +18,7 @@ const orderDetail = {
   bookCount: 2,
   userName: '李四',
   address: '北京市海淀区',
-  orderStatus: '已完成',
+  orderStatus: 1,
   completeTime: '',
   sellerId: 1
 }
@@ -54,6 +54,7 @@ const fetchOrders = async(params = {}) => {
 const btnClick = (type) => {
   orderInfoChangeBtn.buyOrder = (type === 'buyOrder');
   orderInfoChangeBtn.soldOrder = (type === 'soldOrder');
+  console.log(orderInfoChangeBtn.buyOrder, orderInfoChangeBtn.soldOrder)
   fetchOrders(); 
 }
 
@@ -77,20 +78,32 @@ const search = () => {
 // 订单状态类名映射（css修饰使用）
 const getStatusClass = (status) => {
   switch (status) {
-    case '已支付':
+    case 1:
       return 'status-paid';
-    case '已完成':
+    case 2:
       return 'status-completed';
-    case '已取消':
+    case 3:
       return 'status-cancelled';
     default:
       return 'status-default';
   }
 }
-const goToPath = orderInfoChangeBtn.buyOrder ? '/buyOrderDetail' : '/soldOrderDetail'
-const orderDetailClick = (choosePath, orderId) => {
+// 订单状态文本映射（展示使用）
+const getStatusText = (status) => {
+  switch (status) {
+    case 1:
+      return '已支付';
+    case 2:
+      return '已完成';
+    case 3:
+      return '已取消';
+    default:
+      return '未知状态';
+  }
+}
+const orderDetailClick = (orderId) => {
   router.push({
-    path: choosePath,
+    path: orderInfoChangeBtn.buyOrder ? '/buyOrderDetail' : '/soldOrderDetail',
     query: {
       orderId: orderId
     }
@@ -145,7 +158,7 @@ const orderDetailClick = (choosePath, orderId) => {
                 placeholder="时间"
                 class="custom-select"
               >
-                <el-option value="" label="时间" @click="search"></el-option>
+                <el-option value="0" label="时间" @click="search"></el-option>
                 <el-option value="7" label="最近7天" @click="search"></el-option>
                 <el-option value="30" label="最近30天" @click="search"></el-option>
                 <el-option value="90" label="最近90天" @click="search"></el-option>
@@ -159,7 +172,7 @@ const orderDetailClick = (choosePath, orderId) => {
                 placeholder="状态"
                 class="custom-select"
               >
-                <el-option value="" label="状态" @click="search"></el-option>
+                <el-option value="0" label="状态" @click="search"></el-option>
                 <el-option value="1" label="已支付" @click="search"></el-option>
                 <el-option value="2" label="已完成" @click="search"></el-option>
                 <el-option value="3" label="已取消" @click="search"></el-option>
@@ -185,7 +198,7 @@ const orderDetailClick = (choosePath, orderId) => {
     
     <!-- 订单信息列表-->
     <div class="table-body">
-      <div class="order-card" v-for="orderDetail in orderList.detailList" :key="orderDetail.orderId" @click="orderDetailClick(goToPath, orderDetail.orderId)">
+      <div class="order-card" v-for="orderDetail in orderList.detailList" :key="orderDetail.orderId" @click="orderDetailClick(orderDetail.orderId)">
         <!-- 订单基本信息 -->
         <div class="orderBase-info">
           <span class="obi-text">交易时间：<span class="obi-value">{{ orderDetail.orderTime }}</span></span>
@@ -229,7 +242,11 @@ const orderDetailClick = (choosePath, orderId) => {
             
             <!-- 订单状态 -->
             <el-col :span="3" class="order-col">
-              <span class="status-badge" :class="getStatusClass(orderDetail.orderStatus)">{{ orderDetail.orderStatus }}</span>
+              <span 
+              class="status-badge" 
+              :class="getStatusClass(orderDetail.orderStatus)">
+              {{ getStatusText(orderDetail.orderStatus) }}
+            </span>
             </el-col>
           </el-row>
         </div>

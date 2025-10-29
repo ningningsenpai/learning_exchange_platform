@@ -27,6 +27,7 @@ const bookInfo = reactive({
     "计算机",
     "机器学习"
   ],
+  sellerId: 1,
   seller: '鸡哥',
   sellerImage: 'src/static/image.png'
 })

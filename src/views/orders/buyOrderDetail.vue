@@ -7,7 +7,7 @@ import router from '@/router'
 // 订单详情数据
 const orderDetail = {
   orderTime: '2023-12-12 12:00:00',
-  orderId: '1234567890',
+  orderId: 1234567890,
   paymentWay: '支付宝',
   image: 'src/static/1.jpg',
   bookId: 1,
@@ -18,8 +18,8 @@ const orderDetail = {
   bookCount: 2,
   userName: '李四',
   address: '北京市海淀区',
-  orderStatus: '已完成',
-  completeTime: '2023-12-12 12:00:00',
+  orderStatus: 1,
+  completeTime: '',
   sellerId: 1
 }
 // 书籍信息
@@ -49,7 +49,6 @@ const bookInfo = reactive({
 
 // 获取跳转传输的订单ID
 const orderId = router.currentRoute.value.query.orderId
-
 // 获取订单详情
 const getBuyOrderDetailApi = '/api/getBuyOrderById'
 const getBuyOrderDetail = async () => {
@@ -71,12 +70,12 @@ const getBuyOrderDetail = async () => {
 // 根据书籍ID获取书籍详情
 const getBookInfoByIdApi = '/api/getBookInfoById'
 const getBookInfoById = async () => {
-  if (!bookId) 
+  if (!orderDetail.bookId) 
     return
   try {
     const response = await axios.get(getBookInfoByIdApi, {
       params: {
-        bookId: bookId.value
+        bookId: orderDetail.bookId
       }
     })
     if (response.data.code === 1 && response.data.data) {
@@ -94,17 +93,29 @@ onMounted(() => {
 // 订单状态类名映射（css修饰使用）
 const getStatusClass = (status) => {
   switch (status) {
-    case '已支付':
+    case '1':
       return 'status-paid';
-    case '已完成':
+    case '2':
       return 'status-completed';
-    case '已取消':
+    case '3':
       return 'status-cancelled';
     default:
       return 'status-default';
   }
 }
-
+// 订单状态文本映射（展示使用）
+const getStatusText = (status) => {
+  switch (status) {
+    case 1:
+      return '已支付';
+    case 2:
+      return '已完成';
+    case 3:
+      return '已取消';
+    default:
+      return '未知状态';
+  }
+}
 </script>
 
 <template>
@@ -129,14 +140,18 @@ const getStatusClass = (status) => {
         </div>
         <div class="info-row">
           <div class="info-label">订单状态：</div>
-          <div class="info-value" :class="getStatusClass(orderDetail.orderStatus)">{{ orderDetail.orderStatus }}</div>
+          <div 
+          class="info-value" 
+          :class="getStatusClass(orderDetail.orderStatus)">
+          {{ getStatusText(orderDetail.orderStatus) }}
+        </div>
         </div>
         <div class="info-row">
           <div class="info-label">收货时间：</div>
-          <div class="info-value" v-if="orderDetail.orderStatus === '已完成'">
+          <div class="info-value" v-if="orderDetail.orderStatus === 2">
             {{ orderDetail.completeTime}}
           </div>
-          <div class="info-value" v-else-if="orderDetail.orderStatus === '已取消'">已取消</div>
+          <div class="info-value" v-else-if="orderDetail.orderStatus === 3">已取消</div>
           <div class="info-value" v-else>订单未完成</div>
         </div>
       </div>

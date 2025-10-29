@@ -19,6 +19,7 @@ const shoppingCarList = reactive({
       isNote: false,
       number: 1,
       label: ['Vue.js', '前端开发'],
+      sellerId: 1,
       seller: '张三',
       sellerImage: 'src/static/image.png'
     },
@@ -33,6 +34,7 @@ const shoppingCarList = reactive({
       isNote: false,
       number: 2,
       label: ['Vue.js', '前端开发'],
+      sellerId: 1,
       seller: '张三',
       sellerImage: 'src/static/image.png'
     },
@@ -47,6 +49,7 @@ const shoppingCarList = reactive({
       isNote: false,
       number: 2,
       label: ['Vue.js', '前端开发'],
+      sellerId: 1,
       seller: '张三',
       sellerImage: 'src/static/image.png'
     }

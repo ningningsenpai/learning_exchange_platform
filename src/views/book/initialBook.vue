@@ -15,6 +15,7 @@ const book = {
   number: 2,
   isNote: false,
   label: ['Vue.js', '前端开发'],
+  sellerId: 1,
   seller: '张三',
   sellerImage: 'src/static/image.png'
 }
