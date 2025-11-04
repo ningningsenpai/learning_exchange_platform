@@ -93,7 +93,8 @@ const topics = ref([
   { id: 7, name: '区块链' },
   { id: 8, name: '物联网' },
   { id: 9, name: '数据库' },
-  { id: 10, name: '网络安全' }
+  { id: 10, name: '网络安全' },
+  { id: 11, name: 'Vue.js' }
 ])
 // 话题下拉框显示
 function toggleTopicDropdown() {
@@ -119,9 +120,22 @@ function handleClickOutside(event) {
 // 添加点击外部事件监听
 window.addEventListener('click', handleClickOutside)
 
+// 帖子标签点击搜索
+function forumLabelSearch(label) {
+  for (const topic of topics.value) {
+    if (topic.name === label) {
+      selectedTopic.value = topic.name
+      search();
+      break;
+    }
+  }
+}
+
+
 // 帖子数据获取(对象列表)
 const forumPost = reactive({
   user_id: '1',
+  forum_id: '1',
   title: '这是一个很有趣的帖子标题',
   publish_date: '2024-06-01',
   summary: '这是帖子内容的简要介绍',
@@ -129,7 +143,7 @@ const forumPost = reactive({
   author_name: '张三哈哈哈',
   author_avatar: 'src/static/image.png',
   page_views: 1234,
-  lable: ['前端开发', 'Vue.js'],
+  label: ['前端开发', 'Vue.js'],
   cover_avatar: 'src/static/1.jpg',
   type: '原创',
   visible_range: '公开',
@@ -137,10 +151,32 @@ const forumPost = reactive({
   collect_count: 78,
   comment_count: 2,
   subject: '计算机',
-  sub_classify: '前端'
+  sub_classify: '前端',
+  is_followed: false
+})
+const forumPost1 = reactive({
+  user_id: '1',
+  forum_id: '2',
+  title: '这是一个很有趣的帖子标题',
+  publish_date: '2024-06-01',
+  summary: '这是帖子内容的简要介绍',
+  content: '这是帖子内容的这是帖子内容的这是帖子内容的这是帖子内容的这是帖子内容的这是帖子内容的这是帖子内容的,这是帖子内容的这是帖子内容的这是帖子内容的,这是帖子内容的这是帖子内容的这是帖子内容的这是帖子内容的.',
+  author_name: '张三哈哈哈',
+  author_avatar: 'src/static/image.png',
+  page_views: 1234,
+  label: ['前端开发', 'Vue.js'],
+  cover_avatar: 'src/static/1.jpg',
+  type: '原创',
+  visible_range: '公开',
+  like_count: 456,
+  collect_count: 78,
+  comment_count: 2,
+  subject: '计算机',
+  sub_classify: '前端',
+  is_followed: true
 })
 const forumPosts = reactive({
-  list: [forumPost, forumPost, forumPost, forumPost, forumPost, forumPost, forumPost, forumPost]
+  list: [forumPost, forumPost1, forumPost, forumPost1, forumPost, forumPost1, forumPost, forumPost1]
 })
 // 获取推荐帖子对象列表
 const getForumPostsApi = '/api/getRecommendedPosts'
@@ -170,7 +206,6 @@ const buttonSearch = async () => {
   const collation = filterActive.value;
   const topic = selectedTopic.value;
   try {
-    console.log(searchText.text, filterActive.value, selectedTopic.value);
     const response = await axios.get(searchApi, {
       params: {
         keyword: searchText.text,
@@ -187,11 +222,11 @@ const buttonSearch = async () => {
     ElMessage.error('搜索帖子失败');
   } 
 } 
+// 排序按钮或话题选择搜索（允许搜索框为空）
 const search = async () => {
   const collation = filterActive.value;
   const topic = selectedTopic.value;
   try {
-    console.log(searchText.text, collation, topic);
     const response = await axios.get(searchApi, {
       params: {
         keyword: searchText.text,
@@ -209,13 +244,28 @@ const search = async () => {
   } 
 }
 
+// 关注状态切换
+const toggleFollow = (forum) => {
+  forum.is_followed = !forum.is_followed;
+}
 
-// onMounted(() => {
-//   getUserInfo();
-//   getOutstandingCreator();
-//   getOutstandingTopic();
-//   getForumPosts();
-// })
+// 跳转帖子详情
+const goToPostDetail = (forum) => {
+  router.push({
+    path: '/forumDetail',
+    query: {
+      forumId: forum
+    }
+  })
+}
+
+
+onMounted(() => {
+  getUserInfo();
+  getOutstandingCreator();
+  getOutstandingTopic();
+  getForumPosts();
+})
 
 </script>
 
@@ -305,30 +355,34 @@ const search = async () => {
                 <p class="userInfo-name">{{ forum.author_name }}</p>
                 <p class="userInfo-stats">发帖 {{ forum.publish_count || 0 }} · 粉丝 {{ forum.follower_count || 0 }}</p>
               </div>
-              <button class="userInfo-follow">
-                <i class="follow-icon"></i>
-                关注
+              <button 
+              class="userInfo-follow" 
+              :class="{'followed': forum.is_followed}"
+              @click="toggleFollow(forum)"
+              >
+                <i class="follow-icon" :class="{'followed': forum.is_followed}"></i>
+                {{ forum.is_followed ? '已关注' : '关注' }}
               </button>
             </div>
             
             <!-- 帖子标题和简介 -->
-            <div class="forum-content">
+            <div class="forum-content" @click="goToPostDetail(forum.forum_id)">
               <h2 class="forum-title">{{ forum.title }}</h2>
               <p class="forum-summary">{{ forum.summary }}</p>
             </div>
             
             <!-- 帖子数据展示 -->
             <div class="forum-data">
-              <span v-for="label in forum.label" :key="label" class="forum-label">#{{ label }}</span>
-              <span class="forum-viewCount">浏览量:{{ forum.page_views }}</span>
-              <span class="forum-replyCount">评论量:{{ forum.comment_count }}</span>
-              <span class="forum-likeCount">点赞量:{{ forum.like_count }}</span>
-              <span class="forum-collectCount">收藏量:{{ forum.collect_count }}</span>
+              <span v-for="label in forum.label" :key="label" class="forum-label" @click="forumLabelSearch(label)">#{{ label }}</span>
+              <span class="forum-viewCount"  @click="goToPostDetail(forum.forum_id)">浏览量:{{ forum.page_views }}</span>
+              <span class="forum-replyCount"  @click="goToPostDetail(forum.forum_id)">评论量:{{ forum.comment_count }}</span>
+              <span class="forum-likeCount"  @click="goToPostDetail(forum.forum_id)">点赞量:{{ forum.like_count }}</span>
+              <span class="forum-collectCount"  @click="goToPostDetail(forum.forum_id)">收藏量:{{ forum.collect_count }}</span>
             </div>
           </div>
           
           <!-- 帖子封面图,右侧 -->
-          <div class="forum-coverAvatar">
+          <div class="forum-coverAvatar" @click="goToPostDetail(forum.forum_id)">
             <img :src="forum.cover_avatar" alt="帖子封面" class="cover-avatar-img"/>
           </div>
         </div>
@@ -1008,7 +1062,7 @@ const search = async () => {
   margin: 0;
 }
 
-/* 关注按钮优化 */
+/* 关注按钮 */
 .userInfo-follow {
   background-color: #42b983;
   color: white;
@@ -1023,6 +1077,8 @@ const search = async () => {
   transition: all 0.3s ease;
   min-width: 70px;
   justify-content: center;
+  position: relative;
+  overflow: hidden;
 }
 
 .userInfo-follow:hover {
@@ -1035,6 +1091,7 @@ const search = async () => {
   transform: translateY(0);
 }
 
+/* 关注图标 */
 .follow-icon {
   display: inline-block;
   width: 14px;
@@ -1043,6 +1100,74 @@ const search = async () => {
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
+  transition: all 0.3s ease;
+}
+
+/* 已关注状态 */
+.userInfo-follow.followed {
+  background-color: #f5f5f5;
+  color: #999;
+  border: 1px solid #e0e0e0;
+}
+
+.userInfo-follow.followed:hover {
+  background-color: #ff4d4f;
+  color: white;
+  border-color: #ff4d4f;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(255, 77, 79, 0.3);
+}
+
+/* 已关注状态的图标 */
+.userInfo-follow.followed .follow-icon {
+  background-image: url('data:image/svg+xml;charset=utf-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22%23999999%22%3E%3Cpath d=%22M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z%22/%3E%3C/svg%3E');
+}
+
+.userInfo-follow.followed:hover .follow-icon {
+  background-image: url('data:image/svg+xml;charset=utf-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22%23ffffff%22%3E%3Cpath d=%22M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2%22 stroke=%22currentColor%22 stroke-width=%222%22/%3E%3C/svg%3E');
+}
+
+/* 按钮点击效果 */
+.userInfo-follow::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: width 0.3s ease, height 0.3s ease;
+}
+
+.userInfo-follow:active::before {
+  width: 100%;
+  height: 100%;
+}
+
+/* 按钮文字动画 */
+.userInfo-follow span {
+  display: inline-block;
+  transition: transform 0.3s ease;
+}
+
+.userInfo-follow:active span {
+  transform: scale(0.95);
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .userInfo-follow {
+    padding: 6px 12px;
+    font-size: 12px;
+    min-width: 60px;
+  }
+  
+  .follow-icon {
+    width: 12px;
+    height: 12px;
+  }
 }
 
 /* 帖子内容样式 */
@@ -1071,7 +1196,6 @@ const search = async () => {
   margin: 0;
   overflow: hidden;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
 

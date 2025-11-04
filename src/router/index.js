@@ -13,7 +13,8 @@ import UserHomePageView from '@/views/user/userHomePage.vue';
 import BookDetailView from '@/views/book/bookDetail.vue';
 import InitialBookView from '@/views/book/initialBook.vue';
 import SoldOrderDetailView from '@/views/orders/soldOrderDetail.vue';
-import buyOrderDetailView from '@/views/orders/buyOrderDetail.vue';
+import BuyOrderDetailView from '@/views/orders/buyOrderDetail.vue';
+import ForumDetailView from '@/views/forum/forumDetail.vue';
 
 
 
@@ -35,7 +36,8 @@ const routes = [
       {path: 'bookDetail', name: 'bookDetail', component: BookDetailView},
       {path: 'initialBook', name: 'initialBook', component: InitialBookView},
       {path: 'soldOrderDetail', name: 'soldOrderDetail', component: SoldOrderDetailView},
-      {path: 'buyOrderDetail', name: 'buyOrderDetail', component: buyOrderDetailView}
+      {path: 'BuyOrderDetail', name: 'BuyOrderDetail', component: BuyOrderDetailView},
+      {path: 'forumDetail', name: 'forumDetail', component: ForumDetailView}
     ]
   },
   {path: '/login', name: 'login', component: LoginView},
