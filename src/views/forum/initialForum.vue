@@ -271,6 +271,12 @@ const goToPostDetail = (forumId) => {
     }
   })
 }
+// 跳转发布帖子
+const goToReleaseForum = () => {
+  router.push({
+    path: '/releaseForum'
+  })
+}
 
 
 onMounted(() => {
@@ -320,9 +326,10 @@ onMounted(() => {
 
     <!-- 内容栏 -->
     <div class="content">
-      <!-- 搜索框 -->
-      <div class="search">
-        <div class="search-container">
+    <!-- 搜索框和发布帖子按钮 -->
+      <div class="content-top">
+        <div class="search">
+          <div class="search-container">
               <input 
                 type="text" 
                 placeholder="请输入关键词搜索" 
@@ -330,6 +337,10 @@ onMounted(() => {
                 @keyup.enter="search"
               >
               <button class="book-search-btn" @click="buttonSearch">搜索</button>
+          </div>
+        </div>
+        <div class="release-forum-btn">
+          <button @click="goToReleaseForum" class="release-btn">发布帖子</button>
         </div>
       </div>
       <!-- 筛选区域 -->
@@ -730,99 +741,112 @@ onMounted(() => {
   overflow: hidden;
 }
 
-/* 搜索 */
-.search {
+/* 顶部区域布局 */
+.content-top {
   display: flex;
   align-items: center;
-  justify-content: center;
-  position: relative;
-  height: 10%;
+  justify-content: space-between;
+  padding: 15px;
+}
+
+/* 搜索区域 */
+.search {
+  flex: 1;
+  max-width: 400px;
+  margin-left: 30%;
 }
 
 .search-container {
-  position: relative;
   display: flex;
   align-items: center;
-}
-
-.search input {
-  width: 280px; 
-  height: 40px;
-  padding: 0 16px;
-  padding-right: 100px;
-  border: 2px solid #e0e0e0; 
-  border-radius: 20px;
-  outline: none;
-  font-size: 14px;
-  background-color: white; 
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  background: white;
+  border-radius: 25px;
+  padding: 8px 15px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e0e0e0;
   transition: all 0.3s ease;
 }
 
-.search input:focus {
+.search-container:hover {
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
   border-color: #42b983;
-  background-color: white;
-  box-shadow: 0 4px 12px rgba(66, 185, 131, 0.2);
-  width: 320px; 
 }
 
-.search input::placeholder {
-  color: #999;
+.search-container input {
+  flex: 1;
+  border: none;
+  outline: none;
+  padding: 8px 12px;
   font-size: 14px;
-  transition: color 0.3s ease;
+  background: transparent;
 }
 
-.search input:focus::placeholder {
-  color: #ccc;
+.search-container input::placeholder {
+  color: #999;
 }
 
 .book-search-btn {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  height: 32px;
-  padding: 0 20px;
-  background-color: #42b983;
+  background: linear-gradient(135deg, #42b983 0%, #34a853 100%);
   color: white;
   border: none;
-  border-radius: 16px;
-  cursor: pointer;
+  padding: 8px 20px;
+  border-radius: 20px;
   font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 2px 4px rgba(66, 185, 131, 0.3);
+  box-shadow: 0 2px 5px rgba(66, 185, 131, 0.3);
 }
 
 .book-search-btn:hover {
-  background-color: #3aa676;
-  box-shadow: 0 4px 8px rgba(66, 185, 131, 0.4);
-  transform: translateY(-50%) translateY(-1px); 
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(66, 185, 131, 0.4);
 }
 
-.book-search-btn:active {
-  transform: translateY(-50%) translateY(0);
-  box-shadow: 0 2px 4px rgba(66, 185, 131, 0.3);
+/* 发布帖子按钮 */
+.release-forum-btn {
+  margin-left: 20px;
 }
 
-/* 响应式设计 */
-@media screen and (max-width: 768px) {
-  .search input {
-    width: 200px;
-    padding-right: 80px;
-  }
-  
-  .search input:focus {
-    width: 220px;
-  }
-  
-  .book-search-btn {
-    padding: 0 16px;
-    font-size: 13px;
-  }
-  
-  .top {
-    padding: 0 10px;
-  }
+.release-btn {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ff8e53 100%);
+  color: white;
+  border: none;
+  padding: 12px 30px;
+  border-radius: 25px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+  position: relative;
+  overflow: hidden;
+  min-width: 120px;
+}
+
+.release-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s;
+}
+
+.release-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(255, 107, 107, 0.4);
+}
+
+.release-btn:hover::before {
+  left: 100%;
+}
+
+.release-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
 }
 
 /* 筛选区域 */

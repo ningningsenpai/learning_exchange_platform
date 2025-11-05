@@ -42,8 +42,7 @@ const comments = reactive({
       replies: [
         {
           id: 1,
-          parent_id: 1,
-          comment_parent_id: null,
+          comment_parent_id: 0,
           comment_parent_name: null,
           content: '我也觉得写得不错，特别是关于Vue的部分',
           user_id: 2,
@@ -53,7 +52,6 @@ const comments = reactive({
         },
         {
           id: 2,
-          parent_id: 1,
           comment_parent_id: 1,
           comment_parent_name: '前端开发者',
           content: '感谢分享，很有帮助！',
@@ -75,8 +73,7 @@ const comments = reactive({
       replies: [
         {
           id: 1,
-          parent_id: 2,
-          comment_parent_id: null,
+          comment_parent_id: 0,
           comment_parent_name: null,
           content: '作者可以补充一些实际项目的代码',
           user_id: 5,
@@ -103,8 +100,8 @@ const expandedReplies = ref({})
 const openCommentDialog = () => {
   commentDialogVisible.value = true
   replyToUser.value = ''
-  replyToParentCommentId.value = ''
-  replyToCommentId.value = ''
+  replyToParentCommentId.value = 0
+  replyToCommentId.value = 0
   commentContent.value = ''
 }
 
@@ -116,6 +113,7 @@ const closeCommentDialog = () => {
 // 获取帖子评论
 const getForumCommentsApi = '/api/getCommentsByPostId'
 const getForumComments = async () => {
+  console.log(forumId.value)
   try {
     const response = await axios.get(getForumCommentsApi, {
       params: {
@@ -131,6 +129,25 @@ const getForumComments = async () => {
     ElMessage.error('获取帖子评论失败')
   }
 }
+// 获取帖子评论的评论
+const getCommentRepliesApi = '/api/getRepliesByCommentId'
+const getCommentReplies = async () => {
+  console.log(replyToParentCommentId.value)
+  try {
+    const response = await axios.get(getCommentRepliesApi, {
+      params: {
+        comment_id: replyToParentCommentId.value
+      }
+    })
+    if(response.data.code == 1) {
+      comments.List.replies = response.data.data
+    } else {
+      ElMessage.error(response.data.msg)
+    }
+  } catch (error) {
+    ElMessage.error('获取评论回复失败')
+  }
+}
 
 // 发送评论
 const sendCommentApi = '/api/insertComment'
@@ -139,14 +156,10 @@ const sendComment = async () => {
     ElMessage.warning('请输入评论内容')
     return
   }
-  console.log(forumId.value, commentContent.value,replyToParentCommentId.value, replyToCommentId.value, replyToUser.value)
   try {
     const response = await axios.post(sendCommentApi, {
       post_id: forumId.value,
-      content: commentContent.value,
-      parent_id: replyToParentCommentId.value,
-      comment_parent_id: replyToCommentId.value,
-      comment_parent_name: replyToUser.value
+      content: commentContent.value
     })
     if (response.data.code === 1) {
       ElMessage.success('评论成功')
@@ -159,8 +172,36 @@ const sendComment = async () => {
     ElMessage.error('发送评论失败')
   }
 }
+const sendReplyCommentApi = '/api/insertReplyComment'
+const sendReplyComment = async () => {
+  if (!commentContent.value.trim()) {
+    ElMessage.warning('请输入评论内容')
+    return
+  }
+  try {
+    const response = await axios.post(sendReplyCommentApi, {
+      content: commentContent.value,
+      parent_id: replyToParentCommentId.value,
+      comment_parent_id: replyToCommentId.value,
+      comment_parent_name: replyToUser.value
+    })
+    if (response.data.code === 1) {
+      ElMessage.success('评论成功')
+      await getCommentReplies()
+      forumPost.comment_count++
+    } else {
+      ElMessage.error(response.data.msg)
+    }
+  } catch (error) {
+    ElMessage.error('发送评论失败')
+  }
+}
+const handleSendComment = () => {
+  replyToCommentId.value == 0 ? sendComment() : sendReplyComment()
+}
 
-// 回复评论
+
+// 输入框
 const replyToComment = (ParentCommentId, commentId, userName) => {
   // 取消输入框的聚焦状态
   const textarea = document.querySelector('.comment-input textarea')
@@ -188,8 +229,8 @@ const replyToComment = (ParentCommentId, commentId, userName) => {
 // 取消回复
 const cancelReply = () => {
   replyToUser.value = ''
-  replyToParentCommentId.value = ''
-  replyToCommentId.value = ''
+  replyToParentCommentId.value = 0
+  replyToCommentId.value = 0
   commentContent.value = ''
   // 取消输入框的聚焦状态
   const textarea = document.querySelector('.comment-input textarea')
@@ -200,7 +241,9 @@ const cancelReply = () => {
 
 // 切换回复展开状态
 const toggleReplies = (commentId) => {
+  replyToParentCommentId.value = commentId
   expandedReplies.value[commentId] = !expandedReplies.value[commentId]
+  getCommentReplies()
 }
 
 // 添加点赞和收藏状态
@@ -210,14 +253,27 @@ const isCollected = ref(false)
 // 点赞收藏增加减少
 const likePostApi = '/api/likePost'
 const cancelLikePostApi = '/api/cancelLikePost'
+const collectPostApi = '/api/collectPost'
+const cancelCollectPostApi = '/api/cancelCollectPost'
+const userPostAction = async (api) => {
+  try {
+    await axios.post(api, {
+      post_id: forumId.value
+    })
+  } catch (error) {
+    ElMessage.error('操作失败')
+  }
+}
 
 // 点赞功能（前端先进行渲染，等待离开后调用后端函数）
 const handleLike = () => {
   isLiked.value = !isLiked.value
   if (isLiked.value) {
     forumPost.like_count++
+    userPostAction(likePostApi)
   } else {
     forumPost.like_count--
+    userPostAction(cancelLikePostApi)
   }
 }
 // 收藏功能
@@ -225,8 +281,10 @@ const handleCollect = () => {
   isCollected.value = !isCollected.value
   if (isCollected.value) {
     forumPost.collect_count++
+    userPostAction(collectPostApi)
   } else {
     forumPost.collect_count--
+    userPostAction(cancelCollectPostApi)
   }
 }
 
@@ -368,7 +426,12 @@ onMounted(() => {
             rows="3"
           ></textarea>
           <div class="comment-actions">
-            <button class="send-button" @click="sendComment">发送</button>
+            <button 
+              class="send-button" 
+              @click="handleSendComment"   
+              >
+              发送
+            </button>
           </div>
         </div>
 
@@ -399,7 +462,7 @@ onMounted(() => {
             <!-- 回复列表 -->
             <div class="replies-section" v-if="comment.replies && comment.replies.length > 0">
               <!-- 展开/收起按钮 -->
-              <div class="replies-toggle" @click="toggleReplies(comment.id)">
+              <div class="replies-toggle" @click="toggleReplies(comment.id);">
                 <span class="toggle-text">
                   {{ expandedReplies[comment.id] ? '收起' : '展开' }} {{ comment.reply_count }} 条回复
                 </span>
