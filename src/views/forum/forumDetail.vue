@@ -7,8 +7,8 @@ import router from '@/router'
 // 获取帖子详情
 const forumId = ref('')
 const forumPost = reactive({
-  user_id: '1',
-  forum_id: '1',
+  user_id: 1,
+  forum_id: 1,
   title: '这是一个很有趣的帖子标题',
   publish_date: '2024-06-01',
   summary: '这是帖子内容的简要介绍',
@@ -32,43 +32,54 @@ const forumPost = reactive({
 const comments = reactive({
   List: [
     {
-      id: '1',
+      id: 1,
       content: '这个帖子写得真好，学到了很多！',
       user_avatar: 'src/static/image.png',
+      user_id: 1,
       user_name: '学习爱好者',
       create_time: '2024-06-01 10:30:00',
       reply_count: 2,
       replies: [
         {
-          id: '1-1',
-          parent_id: '1',
+          id: 1,
+          parent_id: 1,
+          comment_parent_id: null,
+          comment_parent_name: null,
           content: '我也觉得写得不错，特别是关于Vue的部分',
+          user_id: 2,
           user_avatar: 'src/static/image.png',
           user_name: '前端开发者',
           create_time: '2024-06-01 11:00:00'
         },
         {
-          id: '1-2',
-          parent_id: '1',
+          id: 2,
+          parent_id: 1,
+          comment_parent_id: 1,
+          comment_parent_name: '前端开发者',
           content: '感谢分享，很有帮助！',
+          user_id: 3,
           user_avatar: 'src/static/image.png',
           user_name: '新手程序员',
           create_time: '2024-06-01 11:30:00'
-        }
+        },
       ]
     },
     {
-      id: '2',
+      id: 2,
       content: '有没有更详细的代码示例？',
       user_avatar: 'src/static/image.png',
+      user_id: 4,
       user_name: '代码探索者',
       create_time: '2024-06-01 12:00:00',
       reply_count: 1,
       replies: [
         {
-          id: '2-1',
-          parent_id: '2',
+          id: 1,
+          parent_id: 2,
+          comment_parent_id: null,
+          comment_parent_name: null,
           content: '作者可以补充一些实际项目的代码',
+          user_id: 5,
           user_avatar: 'src/static/image.png',
           user_name: '项目实践者',
           create_time: '2024-06-01 12:30:00'
@@ -81,7 +92,8 @@ const comments = reactive({
 // 评论弹窗控制
 const commentDialogVisible = ref(false)
 const replyToUser = ref('') // 当前回复的用户名
-const replyToCommentId = ref('') // 当前回复的评论ID
+const replyToParentCommentId = ref('') // 当前回复的评论ID(最上级)
+const replyToCommentId = ref('') // 当前回复的评论ID(平级（评论之间相互回复）)
 const commentContent = ref('') // 评论内容
 
 // 展开/收起回复的状态
@@ -91,6 +103,7 @@ const expandedReplies = ref({})
 const openCommentDialog = () => {
   commentDialogVisible.value = true
   replyToUser.value = ''
+  replyToParentCommentId.value = ''
   replyToCommentId.value = ''
   commentContent.value = ''
 }
@@ -98,37 +111,6 @@ const openCommentDialog = () => {
 // 关闭评论弹窗
 const closeCommentDialog = () => {
   commentDialogVisible.value = false
-}
-
-// 发送评论 API
-const insertCommentApi = '/api/insertComment'
-const sendComment = async () => {
-  if (!commentContent.value.trim()) {
-    ElMessage.warning('请输入评论内容')
-    return
-  }
-  
-  try {
-    const response = await axios.post(insertCommentApi, {
-      post_id: forumId.value,
-      content: commentContent.value,
-      parent_id: replyToCommentId.value || null
-    })
-    
-    if (response.data.code === 1) {
-      ElMessage.success(replyToCommentId.value ? '回复成功' : '评论成功')
-      
-      // 刷新评论列表
-      await getForumComments()
-      forumPost.comment_count++
-      
-      closeCommentDialog()
-    } else {
-      ElMessage.error(response.data.msg)
-    }
-  } catch (error) {
-    ElMessage.error('发送评论失败')
-  }
 }
 
 // 获取帖子评论
@@ -150,18 +132,70 @@ const getForumComments = async () => {
   }
 }
 
+// 发送评论
+const sendCommentApi = '/api/insertComment'
+const sendComment = async () => {
+  if (!commentContent.value.trim()) {
+    ElMessage.warning('请输入评论内容')
+    return
+  }
+  console.log(forumId.value, commentContent.value,replyToParentCommentId.value, replyToCommentId.value, replyToUser.value)
+  try {
+    const response = await axios.post(sendCommentApi, {
+      post_id: forumId.value,
+      content: commentContent.value,
+      parent_id: replyToParentCommentId.value,
+      comment_parent_id: replyToCommentId.value,
+      comment_parent_name: replyToUser.value
+    })
+    if (response.data.code === 1) {
+      ElMessage.success('评论成功')
+      await getForumComments()
+      forumPost.comment_count++
+    } else {
+      ElMessage.error(response.data.msg)
+    }
+  } catch (error) {
+    ElMessage.error('发送评论失败')
+  }
+}
+
 // 回复评论
-const replyToComment = (commentId, userName) => {
-  replyToCommentId.value = commentId
+const replyToComment = (ParentCommentId, commentId, userName) => {
+  // 取消输入框的聚焦状态
+  const textarea = document.querySelector('.comment-input textarea')
+  if (textarea) {
+    textarea.blur() 
+  }
+  
+  replyToParentCommentId.value = ParentCommentId
   replyToUser.value = userName
+  replyToCommentId.value = commentId
   commentContent.value = `回复${userName}：`
-  // 自动聚焦到输入框
+  
+  // 自动聚焦到输入框，并设置光标到末尾
   setTimeout(() => {
-    const textarea = document.querySelector('.comment-input textarea')
-    if (textarea) {
-      textarea.focus()
+    const currentTextarea = document.querySelector('.comment-input textarea')
+    if (currentTextarea) {
+      currentTextarea.focus()
+      // 设置光标到文本末尾
+      const textLength = currentTextarea.value.length
+      currentTextarea.setSelectionRange(textLength, textLength)
     }
   }, 100)
+}
+
+// 取消回复
+const cancelReply = () => {
+  replyToUser.value = ''
+  replyToParentCommentId.value = ''
+  replyToCommentId.value = ''
+  commentContent.value = ''
+  // 取消输入框的聚焦状态
+  const textarea = document.querySelector('.comment-input textarea')
+  if (textarea) {
+    textarea.blur() 
+  }
 }
 
 // 切换回复展开状态
@@ -173,7 +207,11 @@ const toggleReplies = (commentId) => {
 const isLiked = ref(false)
 const isCollected = ref(false)
 
-// 点赞功能
+// 点赞收藏增加减少
+const likePostApi = '/api/likePost'
+const cancelLikePostApi = '/api/cancelLikePost'
+
+// 点赞功能（前端先进行渲染，等待离开后调用后端函数）
 const handleLike = () => {
   isLiked.value = !isLiked.value
   if (isLiked.value) {
@@ -182,7 +220,6 @@ const handleLike = () => {
     forumPost.like_count--
   }
 }
-
 // 收藏功能
 const handleCollect = () => {
   isCollected.value = !isCollected.value
@@ -323,11 +360,11 @@ onMounted(() => {
         <div class="comment-input">
           <div class="reply-hint" v-if="replyToUser">
             回复：<span class="reply-user">{{ replyToUser }}</span>
-            <button class="cancel-reply" @click="replyToUser = ''; replyToCommentId = ''; commentContent = ''">取消</button>
+            <button class="cancel-reply" @click="cancelReply">取消</button>
           </div>
           <textarea 
             v-model="commentContent" 
-            placeholder="写下你的评论..."
+            placeholder="欢迎加入讨论..."
             rows="3"
           ></textarea>
           <div class="comment-actions">
@@ -352,7 +389,7 @@ onMounted(() => {
                 </div>
                 <p class="comment-text">{{ comment.content }}</p>
                 <div class="comment-actions">
-                  <button class="action-btn" @click="replyToComment(comment.id, comment.user_name)">
+                  <button class="action-btn" @click="replyToComment(comment.id, null, comment.user_name)">
                     回复
                   </button>
                 </div>
@@ -389,12 +426,13 @@ onMounted(() => {
                   <img :src="reply.user_avatar" alt="用户头像" class="reply-avatar"/>
                   <div class="reply-content">
                     <div class="reply-header">
-                      <span class="reply-user">{{ reply.user_name }}</span>
+                      <span class="reply-user" v-if="reply.comment_parent_id === null">{{ reply.user_name }}</span>
+                      <span class="reply-user" v-else>{{ reply.user_name }} 回复 {{ reply.comment_parent_name }}</span>
                       <span class="reply-time">{{ reply.create_time }}</span>
                     </div>
                     <p class="reply-text">{{ reply.content }}</p>
                     <div class="reply-actions">
-                      <button class="action-btn" @click="replyToComment(comment.id, reply.user_name)">
+                      <button class="action-btn" @click="replyToComment(comment.id, reply.id, reply.user_name)">
                         回复
                       </button>
                     </div>
@@ -678,6 +716,7 @@ onMounted(() => {
 .reply-user {
   color: #42b983;
   font-weight: 500;
+  font-size: 10px;
 }
 
 .cancel-reply {

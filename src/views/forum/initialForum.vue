@@ -249,12 +249,25 @@ const toggleFollow = (forum) => {
   forum.is_followed = !forum.is_followed;
 }
 
+// 帖子浏览量增加
+const incPageViewsByIdApi = '/api/incPageViewsById'
+  const incPageViewsById = async (forumId) => {
+    try {
+      await axios.post(incPageViewsByIdApi, {
+        forum_id: forumId
+      });
+    } catch (error) {
+      ElMessage.error('增加页面访问量失败');
+    }
+  }
+
 // 跳转帖子详情
-const goToPostDetail = (forum) => {
+const goToPostDetail = (forumId) => {
+  incPageViewsById(forumId);
   router.push({
     path: '/forumDetail',
     query: {
-      forumId: forum
+      forumId: forumId
     }
   })
 }
