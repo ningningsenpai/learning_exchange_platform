@@ -14,7 +14,7 @@
           <router-link to="/navigation" class="nav-link">首页</router-link>
           <router-link to="/initialBook" class="nav-link">书库</router-link>
           <router-link to="/initialForum" class="nav-link">论坛</router-link>
-          <router-link to="/initialNews" class="nav-link">消息</router-link>
+          <router-link to="/initialChats" class="nav-link">消息</router-link>
           <router-link to="/shoppingCar" class="nav-link">购物车</router-link>
           <router-link to="/buyAndSoldOrders" class="nav-link">订单</router-link>
           <router-link to="/userHomePage" class="nav-link">个人中心</router-link>

@@ -6,7 +6,7 @@ import RegisterView from '@/views/register/register.vue';
 import LayoutView from '@/views/layout/layout.vue';
 import searchBookView from '@/views/book/searchBook.vue';
 import InitialForumView from '@/views/forum/initialForum.vue';
-import InitialNewsView from '@/views/news/initialNews.vue';
+import InitialChatsView from '@/views/news/initialChats.vue';
 import ShoppingCarView from '@/views/shoppingCar/shoppingCar.vue';
 import BuyAndSoldOrdersView from '@/views/orders/buyAndSoldOrders.vue';
 import UserHomePageView from '@/views/user/userHomePage.vue';
@@ -30,7 +30,7 @@ const routes = [
       {path: 'navigation', name: 'navigation', component: NavigationView},
       {path: 'searchBook', name: 'searchBook', component: searchBookView},
       {path: 'initialForum', name: 'initialForum', component: InitialForumView},
-      {path: 'initialNews', name: 'initialNews', component: InitialNewsView},
+      {path: 'initialChats', name: 'initialChats', component: InitialChatsView},
       {path: 'shoppingCar', name: 'shoppingCar', component: ShoppingCarView},
       {path: 'buyAndSoldOrders', name: 'buyAndSoldOrders', component: BuyAndSoldOrdersView},
       {path: 'userHomePage', name: 'userHomePage', component: UserHomePageView},

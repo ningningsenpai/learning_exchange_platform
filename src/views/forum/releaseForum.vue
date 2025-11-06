@@ -117,7 +117,7 @@ const closeSubmitChooseVisible = () => {
 
 <template>
   <div class="release-container">
-    <!-- 头部区域 - 优化布局，发布按钮放在右上角 -->
+    <!-- 头部区域 -->
     <div class="release-header">
       <div class="header-content">
         <div class="header-left">
