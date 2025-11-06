@@ -3,7 +3,6 @@ import { reactive, onMounted, ref} from 'vue';
 import { ElMessage} from 'element-plus';
 import axios from 'axios';
 import router from '@/router'
-import { send } from 'vite';
 
 // 登陆时接受数据（所有的聊天用户以及最后一句聊天记录）
 const chats = reactive({
@@ -65,20 +64,21 @@ const getHistoryChats = async () => {
 
 
 // 测试get和post方法
-// const testGetApi = 'http://localhost:8080/testGet'
-// const testPostApi = 'http://localhost:8080/testPost'
+const testGetApi = '/api/testGet'
+const testPostApi = '/api/testPost'
 const testData = reactive({
     name: '12313',
-    age: 18
+    age: '18'
 })
 const testPost = async () => {
     try {
         const response = await axios.post(testPostApi, {
-            Headers: {
-                'Content-Type': 'application/json'
-            },
             name: testData.name,
             age: testData.age
+        }, {
+            headers: {
+                'Content-Type': 'application/json'
+            }
         })
         console.log(response.data)
     } catch (error) {
@@ -87,7 +87,12 @@ const testPost = async () => {
 }
 const testGet = async () => {
     try {
-        const response = await axios.get(testGetApi)
+        const response = await axios.get(testGetApi, {
+            params: {
+                name: testData.name,
+                age: testData.age
+            }
+        })
         console.log(response.data)
     } catch (error) {
         ElMessage.error("测试get方法失败，请重试")
