@@ -67,7 +67,6 @@ const handleAvatarUpload = (event) => {
 const saveUserInfo = async () => {
     try {
         const response = await axios.post(userInfoApi, {
-            user_id: editForm.id,
             username: editForm.username,
             avatar: editForm.avatar,
             grade: editForm.grade,
@@ -111,11 +110,7 @@ const addressList = reactive({
 })
 const getAddressList = async () => {
     try {
-        const response = await axios.get(addressApi, {
-            params: {
-                user_id: userInfo.id
-            }
-        })
+        const response = await axios.get(addressApi)
         if(response.data.code === 1) {
             addressList.List = response.data.data
         } else {
@@ -203,7 +198,6 @@ const addAddressApi = '/api/addShoppingAddress'
 const addNewAddressFunction = async () => {
     try {
         const response = await axios.post(addAddressApi, {
-            user_id: userInfo.id,
             address_detail: changeAddress.address_detail,
             is_default: changeAddress.is_default,
         },
@@ -228,9 +222,8 @@ const addNewAddressFunction = async () => {
 const updateAddressApi = '/api/updateShoppingAddress'
 const updateAddress = async (addressId, addressDetail, isDefault) => {
     try {
-        const response = await axios.post(updateAddressApi, {
+        const response = await axios.put(updateAddressApi, {
             id: addressId,
-            user_id: userInfo.id,
             address_detail: addressDetail,
             is_default: isDefault,
         },
@@ -255,9 +248,8 @@ const updateAddress = async (addressId, addressDetail, isDefault) => {
 const deleteAddressApi = '/api/deleteShoppingAddress'
 const deleteAddressFunction = async (addressId) => {
     try {
-        const response = await axios.post(deleteAddressApi, {
+        const response = await axios.delete(deleteAddressApi, {
             id: addressId,
-            user_id: userInfo.id,
         },
         {
             headers: {
@@ -283,11 +275,7 @@ const defaultShoppingTime = ref(2)
 const getDefaultShoppingTimeApi = '/api/getDefaultShoppingTime'
 const getDefaultShoppingTime = async () => {
     try {
-        const response = await axios.get(getDefaultShoppingTimeApi, {
-            params: {
-                user_id: userInfo.id
-            }
-        })
+        const response = await axios.get(getDefaultShoppingTimeApi)
         if(response.data.code === 1) {
             defaultShoppingTime.value = response.data.data.time
         } else {
@@ -297,9 +285,27 @@ const getDefaultShoppingTime = async () => {
         ElMessage.error("获取默认收货时间失败，请重试")
     }
 }
-// 更新收货时间
-const updateShoppingTime = () => {
-  
+// 更新收货时间接口
+const updateShoppingTimeApi = '/api/updateDefaultShoppingTime'
+const updateShoppingTime = async () => {
+  try {
+      const response = await axios.put(updateShoppingTimeApi, {
+          time: defaultShoppingTime.value,
+      },
+      {
+          headers: {
+              'Content-Type': 'application/json'
+          }
+      } 
+    )
+      if(response.data.code === 1) {
+          ElMessage.success("更新收货时间成功")
+      } else {
+          ElMessage.error(response.data.msg)
+      }
+  } catch (error) {
+      ElMessage.error("更新收货时间失败，请重试")
+  }
 }
 
 

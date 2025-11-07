@@ -6,7 +6,6 @@ const route = useRoute()
 const bookId = ref(route.query.bookId)
 
 // 根据id获取书籍详情
-
 const bookInfo = reactive({
   id: 1,
   imageList: [
@@ -41,7 +40,7 @@ const getBookInfoById = async () => {
         bookId: bookId.value
       }
     })
-    if (response.data.code === 1 && response.data.data) {
+    if (response.data.code === 1) {
       Object.assign(bookInfo, response.data.data)
     }
   } catch (error) {
@@ -49,22 +48,88 @@ const getBookInfoById = async () => {
   }
 }
 
+// 获取用户信息
+const userInfoApi = '/api/getUserInfo'
+const userInfo = reactive({
+    id: 1,
+    username: '张三',
+    avatar: 'src/static/image.png',
+    grade: '大一',
+    major: '计算机科学与技术',
+    summary: '这个人很懒，什么都没有留下。',
+})
+const getUserInfo = async () => {
+    try {
+        const response = await axios.get(userInfoApi)
+        if(response.data.code === 1) {
+            Object.assign(userInfo, response.data.data)
+        } else {
+            ElMessage.error(response.data.msg)
+        }
+    } catch (error) {
+        ElMessage.error("获取用户信息失败，请重试")
+    }
+}
+
+// 获取收货地址信息
+const addressApi = '/api/getShoppingAddressByUserId'
+const address = reactive({
+    id: 1,
+    user_id: 1,
+    address_detail: '北京市海淀区中关村大街27号',
+    is_default: true,
+})
+const address1 = reactive({
+    id: 2,
+    user_id: 1,
+    address_detail: '北京市海淀区中关村大街28号',
+    is_default: false,
+})
+const addressList = reactive({
+    List: [address, address1]
+})
+const getAddressList = async () => {
+    try {
+        const response = await axios.get(addressApi)
+        if(response.data.code === 1) {
+            addressList.List = response.data.data
+        } else {
+            ElMessage.error(response.data.msg)
+        }
+    } catch (error) {
+        ElMessage.error("获取收货地址失败，请重试")
+    }
+}
+const getDefaultAddress = () => {
+  return addressList.List.find(address => address.is_default)
+}
+
+// 获取默认收货时间
+const defaultShoppingTime = ref(2)
+const getDefaultShoppingTimeApi = '/api/getDefaultShoppingTime'
+const getDefaultShoppingTime = async () => {
+    try {
+        const response = await axios.get(getDefaultShoppingTimeApi)
+        if(response.data.code === 1) {
+            defaultShoppingTime.value = response.data.data.time
+        } else {
+            ElMessage.error(response.data.msg)
+        }
+    } catch (error) {
+        ElMessage.error("获取默认收货时间失败，请重试")
+    }
+}
+
 onMounted(() => {
   getBookInfoById()
+  getUserInfo()
+  getAddressList()
+  getDefaultShoppingTime()
 })
 
 // 详情图片动态绑定
 const detailImage = ref(bookInfo.imageList[0])
 
-// 联系卖家事件绑定
-const contactSeller = () => {
-  push({
-    path: 'src/views/news/initialNews.vue',
-    query: {
-      
-    }
-  })
-}
 
 // 加入购物车跳转确认界面事件绑定
 // 添加数量控制变量
@@ -89,40 +154,87 @@ const addToCart = async() => {
   // 重置弹窗显示和初始显示数量
   centerDialogVisible.value = false
   quantity.value = 1
-  // 将书籍id和数量添加到购物车
-  const addToCartApi = '/api/addToShoppingCarById'
-  const response = await axios.post(addToCartApi, {
-    bookId: bookInfo.id,
-    number: quantity.value
-  })
-  if (response.data.code === 1) {
-    ElMessage.success('加入购物车成功')
-  } else {
-    ElMessage.error('加入购物车失败')
+  bookInfo.number -= quantity.value
+  // 将书籍id和数量添加到购物车以及更新库存数量
+  await addToCartFunction()
+  await updateNumberFunction()
+}
+// 添加购物车接口
+const addToCartApi = '/api/addToShoppingCarById'
+const addToCartFunction = async () => {
+  try {
+    const response = await axios.post(addToCartApi, {
+      bookId: bookInfo.id,
+      number: quantity.value
+    }, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    }
+  )
+    if (response.data.code === 1) {
+      ElMessage.success('加入购物车成功')
+    } else {
+      ElMessage.error(response.data.msg)
+    }
+  } catch (error) {
+    console.error('加入购物车失败:')
+  }
+}
+
+// 更新库存数量接口
+const updateNumberApi = '/api/updateBookNumberById'
+const updateNumberFunction = async () => {
+  try {
+    const response = await axios.put(updateNumberApi, {
+      bookId: bookInfo.id,
+      number: bookInfo.number
+    }, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    }
+  )
+  } catch (error) {
+    console.error('更新库存数量失败:', error)
   }
 }
 
 // 购买相关事件
 const paymentDialogVisible = ref(false)
-// const confirmPayment = async () => {
-//   if (quantity.value > bookInfo.number) {
-//     ElMessage.error('购买数量不能超过库存数量')
-//     return
-//   }
-//   // 关闭弹窗
-//   paymentDialogVisible.value = false
-//   // 调用购买接口
-//   const buyApi = '/api/buyBookById'
-//   const response = await axios.post(buyApi, {
-//     bookId: bookInfo.id,
-//     number: quantity.value
-//   })
-//   if (response.data.code === 1) {
-//     ElMessage.success('购买成功')
-//   } else {
-//     ElMessage.error('购买失败')
-//   }
-// }
+const paymentApi = '/api/payBookById'
+const confirmPayment = async () => {
+  paymentDialogVisible.value = false
+  try {
+    const response = await axios.post(paymentApi, {
+      bookId: bookInfo.id,
+      number: quantity.value,
+      address_id: getDefaultAddress().address_detail,
+      defaultTime: defaultShoppingTime.value
+    },{
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+    if (response.data.code === 1) {
+      ElMessage.success('购买成功')
+    } else {
+      ElMessage.error(response.data.msg)
+    }
+  } catch (error) {
+    console.error('购买失败')
+  }
+}
+
+// 联系卖家事件绑定
+const contactSeller = () => {
+  push({
+    path: 'src/views/news/initialChats.vue',
+    query: {
+      
+    }
+  })
+}
 
 </script>
 

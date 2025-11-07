@@ -5,7 +5,6 @@ import axios from 'axios';
 import router from '@/router'
 
 // 获取购物车中的商品
-const getShoppingCarApi = '/api/getShoppingCar'
 const shoppingCarList = reactive({
   bookList: [
     {
@@ -55,6 +54,7 @@ const shoppingCarList = reactive({
     }
   ]
 }) 
+const getShoppingCarApi = '/api/getShoppingCar'
 const getShoppingCar = async () => {
   try {
     const response = await axios.get(getShoppingCarApi);
