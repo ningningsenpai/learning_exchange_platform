@@ -4,8 +4,31 @@ import { ElMessage, ElMessageBox} from 'element-plus';
 import axios from 'axios';
 import router from '@/router'
 
+// 获取用户信息
+const userInfoApi = '/api/getUserInfo'
+const userInfo = reactive({
+    id: 1,
+    username: '张三',
+    avatar: 'src/static/image.png',
+    grade: '大一',
+    major: '计算机科学与技术',
+    summary: '这个人很懒，什么都没有留下。',
+})
+const getUserInfo = async () => {
+    try {
+        const response = await axios.get(userInfoApi)
+        if(response.data.code === 1) {
+            Object.assign(userInfo, response.data.data)
+        } else {
+            ElMessage.error(response.data.msg)
+        }
+    } catch (error) {
+        ElMessage.error("获取用户信息失败，请重试")
+    }
+}
+
 // 获取帖子详情
-const forumId = ref('')
+const forumId = ref(0)
 const forumPost = reactive({
   user_id: 1,
   forum_id: 1,
@@ -27,6 +50,24 @@ const forumPost = reactive({
   sub_classify: '前端',
   is_followed: false
 })
+const getForumDetailApi = '/api/getPostInfoById'
+const getForumDetail = async () => {
+  try {
+    const response = await axios.get(getForumDetailApi, {
+      params: {
+        post_id: forumId.value
+      }
+    })
+    if(response.data.code == 1) {
+      Object.assign(forumPost, response.data.data)
+    } else {
+      ElMessage.error(response.data.msg)
+    }
+  } catch (error) {
+    ElMessage.error('获取帖子详情失败')
+  }
+}
+
 
 // 评论数据结构
 const comments = reactive({
@@ -42,8 +83,10 @@ const comments = reactive({
       replies: [
         {
           id: 1,
-          comment_parent_id: 0,
-          comment_parent_name: null,
+          comment_id: 1,
+          replay_type: 0,
+          replay_comment_id: 0,
+          replay_user_name: null,
           content: '我也觉得写得不错，特别是关于Vue的部分',
           user_id: 2,
           user_avatar: 'src/static/image.png',
@@ -52,8 +95,10 @@ const comments = reactive({
         },
         {
           id: 2,
-          comment_parent_id: 1,
-          comment_parent_name: '前端开发者',
+          comment_id: 1,
+          replay_type: 1,
+          replay_comment_id: 1,
+          replay_user_name: '前端开发者',
           content: '感谢分享，很有帮助！',
           user_id: 3,
           user_avatar: 'src/static/image.png',
@@ -73,8 +118,10 @@ const comments = reactive({
       replies: [
         {
           id: 1,
-          comment_parent_id: 0,
-          comment_parent_name: null,
+          comment_id: 0,
+          replay_type: 0,
+          replay_comment_id: 0,
+          replay_user_name: null,
           content: '作者可以补充一些实际项目的代码',
           user_id: 5,
           user_avatar: 'src/static/image.png',
@@ -89,8 +136,8 @@ const comments = reactive({
 // 评论弹窗控制
 const commentDialogVisible = ref(false)
 const replyToUser = ref('') // 当前回复的用户名
-const replyToParentCommentId = ref('') // 当前回复的评论ID(最上级)
-const replyToCommentId = ref('') // 当前回复的评论ID(平级（评论之间相互回复）)
+const replyToParentCommentId = ref(0) // 当前回复的评论ID(最上级)
+const replyToCommentId = ref(0) // 当前回复的评论ID(平级（评论之间相互回复）)
 const commentContent = ref('') // 评论内容
 
 // 展开/收起回复的状态
@@ -113,7 +160,6 @@ const closeCommentDialog = () => {
 // 获取帖子评论
 const getForumCommentsApi = '/api/getCommentsByPostId'
 const getForumComments = async () => {
-  console.log(forumId.value)
   try {
     const response = await axios.get(getForumCommentsApi, {
       params: {
@@ -131,8 +177,7 @@ const getForumComments = async () => {
 }
 // 获取帖子评论的评论
 const getCommentRepliesApi = '/api/getRepliesByCommentId'
-const getCommentReplies = async () => {
-  console.log(replyToParentCommentId.value)
+const getCommentReplies = async (comment) => {
   try {
     const response = await axios.get(getCommentRepliesApi, {
       params: {
@@ -140,7 +185,7 @@ const getCommentReplies = async () => {
       }
     })
     if(response.data.code == 1) {
-      comments.List.replies = response.data.data
+      comment.replies = response.data.data
     } else {
       ElMessage.error(response.data.msg)
     }
@@ -149,13 +194,79 @@ const getCommentReplies = async () => {
   }
 }
 
-// 发送评论
+// 前端动态更新评论
+const formatDateTime = (date = new Date()) => {
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  const hours = date.getHours();
+  const minutes = date.getMinutes();
+  const seconds = date.getSeconds();
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+};
+const updateCommentFirst = () => {
+  // 占楼评论
+  if(replyToParentCommentId.value == 0 && replyToCommentId.value == 0) {
+    comments.List.push({
+      id: comments.List.length + 1,
+      content: commentContent.value,
+      user_avatar: userInfo.avatar,
+      user_id: userInfo.id,
+      user_name: userInfo.username,
+      create_time: formatDateTime(),
+      reply_count: 0,
+      replies: []
+    })
+    forumPost.comment_count++
+  } else if (replyToParentCommentId.value != 0 && replyToCommentId.value == 0) {
+    const parentComment = comments.List.find(comment => comment.id === replyToParentCommentId.value)
+    const pureContent = commentContent.value.replace(`回复${replyToUser.value}：`, '');
+    if (parentComment) {
+      parentComment.replies.push({
+        id: parentComment.replies.length + 1,
+        comment_id: replyToParentCommentId.value,
+        replay_type: 0,
+        replay_comment_id: 0,
+        replay_user_name: null,
+        content: pureContent,
+        user_id: userInfo.id,
+        user_avatar: userInfo.avatar,
+        user_name: userInfo.username,
+        create_time: formatDateTime()
+      })
+      parentComment.reply_count++
+    }
+  } else if (replyToParentCommentId.value != 0 && replyToCommentId.value != 0) {
+    const parentComment = comments.List.find(comment => comment.id === replyToParentCommentId.value)
+    const pureContent = commentContent.value.replace(`回复${replyToUser.value}：`, '');
+    if (parentComment) {
+      parentComment.replies.push({
+        id: parentComment.replies.length + 1,
+        comment_id: replyToParentCommentId.value,
+        replay_type: 1,
+        replay_comment_id: replyToCommentId.value,
+        replay_user_name: replyToUser.value,
+        content: pureContent,
+        user_id: userInfo.id,
+        user_avatar: userInfo.avatar,
+        user_name: userInfo.username,
+        create_time: formatDateTime()
+      })
+      parentComment.reply_count++
+    }
+  }
+}
+
+// 发送评论接口
+// 占楼评论
 const sendCommentApi = '/api/insertComment'
 const sendComment = async () => {
   if (!commentContent.value.trim()) {
     ElMessage.warning('请输入评论内容')
     return
   }
+  updateCommentFirst()
+  resetForumPostValue()
   try {
     const response = await axios.post(sendCommentApi, {
       post_id: forumId.value,
@@ -164,7 +275,6 @@ const sendComment = async () => {
     if (response.data.code === 1) {
       ElMessage.success('评论成功')
       await getForumComments()
-      forumPost.comment_count++
     } else {
       ElMessage.error(response.data.msg)
     }
@@ -172,23 +282,27 @@ const sendComment = async () => {
     ElMessage.error('发送评论失败')
   }
 }
+// 非占楼评论回复
 const sendReplyCommentApi = '/api/insertReplyComment'
 const sendReplyComment = async () => {
   if (!commentContent.value.trim()) {
     ElMessage.warning('请输入评论内容')
     return
   }
+  updateCommentFirst()
+  resetForumPostValue()
   try {
+    const pureContent = commentContent.value.replace(`回复${replyToUser.value}：`, '');
     const response = await axios.post(sendReplyCommentApi, {
-      content: commentContent.value,
-      parent_id: replyToParentCommentId.value,
-      comment_parent_id: replyToCommentId.value,
-      comment_parent_name: replyToUser.value
+      replay_type: replyToCommentId.value == 0 ? 0 : 1,
+      content: pureContent,
+      comment_id: replyToParentCommentId.value,
+      replay_comment_id: replyToCommentId.value,
+      replay_user_name: replyToUser.value
     })
     if (response.data.code === 1) {
       ElMessage.success('评论成功')
       await getCommentReplies()
-      forumPost.comment_count++
     } else {
       ElMessage.error(response.data.msg)
     }
@@ -197,7 +311,7 @@ const sendReplyComment = async () => {
   }
 }
 const handleSendComment = () => {
-  replyToCommentId.value == 0 ? sendComment() : sendReplyComment()
+  replyToCommentId.value == 0 && replyToParentCommentId.value == 0 ? sendComment() : sendReplyComment()
 }
 
 
@@ -228,27 +342,68 @@ const replyToComment = (ParentCommentId, commentId, userName) => {
 
 // 取消回复
 const cancelReply = () => {
-  replyToUser.value = ''
-  replyToParentCommentId.value = 0
-  replyToCommentId.value = 0
-  commentContent.value = ''
+  resetForumPostValue()
   // 取消输入框的聚焦状态
   const textarea = document.querySelector('.comment-input textarea')
   if (textarea) {
     textarea.blur() 
   }
 }
+const resetForumPostValue = () => {
+  replyToUser.value = ''
+  replyToParentCommentId.value = 0
+  replyToCommentId.value = 0
+  commentContent.value = ''
+}
 
 // 切换回复展开状态
-const toggleReplies = (commentId) => {
-  replyToParentCommentId.value = commentId
-  expandedReplies.value[commentId] = !expandedReplies.value[commentId]
-  getCommentReplies()
+const toggleReplies = (comment) => {
+  replyToParentCommentId.value = comment.id
+  expandedReplies.value[comment.id] = !expandedReplies.value[comment.id]
+  getCommentReplies(comment)
 }
 
 // 添加点赞和收藏状态
 const isLiked = ref(false)
 const isCollected = ref(false)
+
+// 获取帖子点赞和收藏状态
+const postLikeApi = '/api/getPostLikeStatus'
+const postCollectApi = '/api/getPostCollectStatus'
+const getPostLikeStatus = async () => {
+  try {
+    const response = await axios.get(postLikeApi, {
+      params: {
+        post_id: forumId.value
+      }
+    })
+    if(response.data.code == 1) {
+      isLiked.value = response.data.data
+    } else {
+      ElMessage.error(response.data.msg)
+    }
+  } catch (error) {
+    ElMessage.error('获取帖子点赞状态失败')
+  }
+}
+const getPostCollectStatus = async () => {
+  try {
+    const response = await axios.get(postCollectApi, {
+      params: {
+        post_id: forumId.value
+      }
+    })
+    if(response.data.code == 1) {
+      isCollected.value = response.data.data
+    } else {
+      ElMessage.error(response.data.msg)
+    }
+  } catch (error) {
+    ElMessage.error('获取帖子收藏状态失败')
+  }
+}
+
+
 
 // 点赞收藏增加减少
 const likePostApi = '/api/likePost'
@@ -293,27 +448,9 @@ const handleFollow = () => {
   forumPost.is_followed = !forumPost.is_followed
 }
 
-const getForumDetailApi = '/api/getPostInfoById'
-const getForumDetail = async () => {
-  try {
-    const response = await axios.get(getForumDetailApi, {
-      params: {
-        post_id: forumId.value
-      }
-    })
-    if(response.data.code == 1) {
-      Object.assign(forumPost, response.data.data)
-    } else {
-      ElMessage.error(response.data.msg)
-    }
-  } catch (error) {
-    ElMessage.error('获取帖子详情失败')
-  }
-}
-
 onMounted(() => {
   forumId.value =  router.currentRoute.value.query.forumId
-  console.log('forumId:', forumId.value)
+  getUserInfo()
   getForumDetail()
   getForumComments()
 })
@@ -452,7 +589,7 @@ onMounted(() => {
                 </div>
                 <p class="comment-text">{{ comment.content }}</p>
                 <div class="comment-actions">
-                  <button class="action-btn" @click="replyToComment(comment.id, null, comment.user_name)">
+                  <button class="action-btn" @click="replyToComment(comment.id, 0, comment.user_name)">
                     回复
                   </button>
                 </div>
@@ -462,7 +599,7 @@ onMounted(() => {
             <!-- 回复列表 -->
             <div class="replies-section" v-if="comment.replies && comment.replies.length > 0">
               <!-- 展开/收起按钮 -->
-              <div class="replies-toggle" @click="toggleReplies(comment.id);">
+              <div class="replies-toggle" @click="toggleReplies(comment);">
                 <span class="toggle-text">
                   {{ expandedReplies[comment.id] ? '收起' : '展开' }} {{ comment.reply_count }} 条回复
                 </span>
@@ -489,8 +626,8 @@ onMounted(() => {
                   <img :src="reply.user_avatar" alt="用户头像" class="reply-avatar"/>
                   <div class="reply-content">
                     <div class="reply-header">
-                      <span class="reply-user" v-if="reply.comment_parent_id === null">{{ reply.user_name }}</span>
-                      <span class="reply-user" v-else>{{ reply.user_name }} 回复 {{ reply.comment_parent_name }}</span>
+                      <span class="reply-user" v-if="reply.replay_comment_id == 0">{{ reply.user_name }}</span>
+                      <span class="reply-user" v-else>{{ reply.user_name }} 回复 {{ reply.replay_user_name }}</span>
                       <span class="reply-time">{{ reply.create_time }}</span>
                     </div>
                     <p class="reply-text">{{ reply.content }}</p>

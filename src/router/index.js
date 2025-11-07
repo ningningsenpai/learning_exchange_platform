@@ -16,6 +16,7 @@ import SoldOrderDetailView from '@/views/orders/soldOrderDetail.vue';
 import BuyOrderDetailView from '@/views/orders/buyOrderDetail.vue';
 import ForumDetailView from '@/views/forum/forumDetail.vue';
 import ReleaseForumView from '@/views/forum/releaseForum.vue';
+import ForumHomePageView from '@/views/user/forumHomePage.vue';
 
 
 
@@ -39,7 +40,8 @@ const routes = [
       {path: 'soldOrderDetail', name: 'soldOrderDetail', component: SoldOrderDetailView},
       {path: 'BuyOrderDetail', name: 'BuyOrderDetail', component: BuyOrderDetailView},
       {path: 'forumDetail', name: 'forumDetail', component: ForumDetailView},
-      {path: 'releaseForum', name: 'releaseForum', component: ReleaseForumView}
+      {path: 'releaseForum', name: 'releaseForum', component: ReleaseForumView},
+      {path: 'forumHomePage', name: 'forumHomePage', component: ForumHomePageView},
     ]
   },
   {path: '/login', name: 'login', component: LoginView},

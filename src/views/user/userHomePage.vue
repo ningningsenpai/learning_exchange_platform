@@ -63,10 +63,25 @@ const handleAvatarUpload = (event) => {
         reader.readAsDataURL(file)
     }
 }
-
-const saveUserInfo = async () => {
+const changeUserInfoShow = () => {
+    if(editForm.avatar) {
+        userInfo.avatar = editForm.avatar
+    }
+    userInfo.username = editForm.username
+    userInfo.grade = editForm.grade
+    userInfo.major = editForm.major
+    userInfo.summary = editForm.summary
+    closeUserInfoModal()
+}
+const updateUserInfoApi = '/api/updateUserInfo'
+const updateUserInfo = async () => {
+    if(!editForm.username || !editForm.grade || !editForm.major || !editForm.summary) {
+        ElMessage.error("请填写完整用户信息")
+        return
+    }
+    changeUserInfoShow()
     try {
-        const response = await axios.post(userInfoApi, {
+        const response = await axios.post(updateUserInfoApi, {
             username: editForm.username,
             avatar: editForm.avatar,
             grade: editForm.grade,
@@ -433,7 +448,7 @@ onMounted(() => {
         
         <div class="modal-footer">
           <button class="cancel-btn" @click="closeUserInfoModal">取消</button>
-          <button class="save-btn" @click="saveUserInfo">保存</button>
+          <button class="save-btn" @click="updateUserInfo">保存</button>
         </div>
       </div>
     </div>
@@ -612,7 +627,7 @@ onMounted(() => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 5px;
 }
 
 /* 个人信息区域样式 */

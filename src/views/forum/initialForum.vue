@@ -278,6 +278,15 @@ const goToReleaseForum = () => {
   })
 }
 
+// 跳转创作者主页
+const goToCreatorHomePage = () => {
+  router.push({
+    path: '/forumHomePage',
+    query: {
+    }
+  })
+}
+
 
 onMounted(() => {
   getUserInfo();
@@ -299,7 +308,7 @@ onMounted(() => {
         <div class="userInfo-text">
           <p>{{ userInfo.username }}</p>
         </div>
-        <button class="userInfo-btn" v-if="userInfo.id">创作者主页</button>
+        <button class="userInfo-btn" v-if="userInfo.id" @click="goToCreatorHomePage">创作者主页</button>
       </div>
       <!-- 侧边优秀创作者 -->
       <div class="sider-OutstandingCreator">
