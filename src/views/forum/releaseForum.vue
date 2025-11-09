@@ -1,5 +1,5 @@
 <script setup>
-import { reactive, ref } from 'vue';
+import { reactive, ref, onMounted } from 'vue';
 import { ElMessage} from 'element-plus';
 
 
@@ -9,9 +9,9 @@ const formData = reactive({
   label: [],
   summary: '',
   content: '',
-  coverImage: null,
-  type: '原创',
-  visible_range: '公开',
+  cover_avatar: null,
+  type: 0, // 0:原创, 1:转载
+  visible_range: 0, // 0:公开, 1:粉丝可见, 2:好友可见, 3:私人
 });
 
 // 话题选择相n
@@ -86,15 +86,14 @@ const handleCoverImageChange = (event) => {
       ElMessage.error('图片大小不能超过5MB');
       return;
     }
-    formData.coverImage = file;
+    formData.cover_avatar = file;
     ElMessage.success('封面图片已选择');
-    console.log(formData.coverImage);
   }
 };
 // 清除封面图片并释放URL对象
 const clearCoverImage = () => {
-  if (formData.coverImage) {
-    formData.coverImage = null;
+  if (formData.cover_avatar) {
+    formData.cover_avatar = null;
   }
   // 重置文件输入框
   const fileInputs = document.querySelectorAll('.cover-image-input');
@@ -110,8 +109,39 @@ const openSubmitChooseVisible = () => {
 };
 const closeSubmitChooseVisible = () => {
   submitChooseVisible.value = false;
+  resetFormData();
 };
 
+// 重重表单数据
+const resetFormData = () => {
+  formData.title = '';
+  formData.label = [];
+  formData.summary = '';
+  formData.content = '';
+  formData.cover_avatar = null;
+  formData.type = 0; // 0:原创, 1:转载
+  formData.visible_range = 0; // 0:公开, 1:粉丝可见, 2:好友可见, 3:私人
+};
+
+// 发布帖子
+const releaseForumApi = '/api/releaseForum';
+const releaseForum = async () => {
+  try {
+    await axios.post(releaseForumApi, formData, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+    ElMessage.success('发布帖子成功');
+    resetFormData();
+  } catch (error) {
+    ElMessage.error('发布帖子失败')
+  }
+}
+
+onMounted(() => {
+  getLabels();
+})
 
 </script>
 
@@ -150,8 +180,8 @@ const closeSubmitChooseVisible = () => {
         <div class="modal-content">
           <!-- 左侧：封面图片区域 -->
           <div class="cover-section">
-            <div v-if="formData.coverImage" class="cover-preview">
-              <img :src="URL.createObjectURL(formData.coverImage)" alt="封面预览" class="cover-image">
+            <div v-if="formData.cover_avatar" class="cover-preview">
+              <img :src="URL.createObjectURL(formData.cover_avatar)" alt="封面预览" class="cover-image">
               <div class="cover-actions">
                 <button class="change-cover-btn" @click="clearCoverImage">清除封面</button>
               </div>
@@ -205,11 +235,11 @@ const closeSubmitChooseVisible = () => {
               <label class="setting-label">版权</label>
               <div class="radio-group">
                 <label class="radio-label">
-                  <input type="radio" v-model="formData.type" value="原创" class="radio-input">
+                  <input type="radio" v-model="formData.type" value="0" class="radio-input">
                   <span class="radio-text">原创</span>
                 </label>
                 <label class="radio-label">
-                  <input type="radio" v-model="formData.type" value="转载" class="radio-input">
+                  <input type="radio" v-model="formData.type" value="1" class="radio-input">
                   <span class="radio-text">转载</span>
                 </label>
               </div>
@@ -220,19 +250,19 @@ const closeSubmitChooseVisible = () => {
               <label class="setting-label">可见范围</label>
               <div class="radio-group">
                 <label class="radio-label">
-                  <input type="radio" v-model="formData.visible_range" value="公开" class="radio-input">
+                  <input type="radio" v-model="formData.visible_range" value="0" class="radio-input">
                   <span class="radio-text">公开</span>
                 </label>
                 <label class="radio-label">
-                  <input type="radio" v-model="formData.visible_range" value="粉丝可见" class="radio-input">
+                  <input type="radio" v-model="formData.visible_range" value="1" class="radio-input">
                   <span class="radio-text">粉丝可见</span>
                 </label>
                 <label class="radio-label">
-                  <input type="radio" v-model="formData.visible_range" value="好友可见" class="radio-input">
+                  <input type="radio" v-model="formData.visible_range" value="2" class="radio-input">
                   <span class="radio-text">好友可见</span>
                 </label>
                 <label class="radio-label">
-                  <input type="radio" v-model="formData.visible_range" value="私人" class="radio-input">
+                  <input type="radio" v-model="formData.visible_range" value="3" class="radio-input">
                   <span class="radio-text">私人</span>
                 </label>
               </div>
@@ -242,7 +272,7 @@ const closeSubmitChooseVisible = () => {
           <!-- 发布按钮 -->
           <div class="action-section">
             <button class="cancel-btn" @click="closeSubmitChooseVisible">取消</button>
-            <button class="publish-final-btn" @click="finalPublishPost">确认发布</button>
+            <button class="publish-final-btn" @click="releaseForum">确认发布</button>
           </div>
         </div>
       </div>
@@ -368,14 +398,14 @@ const closeSubmitChooseVisible = () => {
             
             <!-- 右侧图片预览区域 -->
             <div class="image-preview">
-              <div v-if="formData.coverImage" class="preview-content">
-                <img :src="URL.createObjectURL(formData.coverImage)" alt="封面图片预览" class="preview-image">
+              <div v-if="formData.cover_avatar" class="preview-content">
+                <img :src="URL.createObjectURL(formData.cover_avatar)" alt="封面图片预览" class="preview-image">
               </div>
               <div v-else class="preview-placeholder">
                 <span class="placeholder-text">图片预览</span>
               </div>
             </div>
-            <div class="clear-button-container" v-if="formData.coverImage">
+            <div class="clear-button-container" v-if="formData.cover_avatar">
               <button 
               class="clear-button" 
               @click="clearCoverImage"

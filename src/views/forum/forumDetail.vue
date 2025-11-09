@@ -267,51 +267,41 @@ const sendComment = async () => {
   }
   updateCommentFirst()
   resetForumPostValue()
-  try {
-    const response = await axios.post(sendCommentApi, {
-      post_id: forumId.value,
-      content: commentContent.value
-    })
-    if (response.data.code === 1) {
-      ElMessage.success('评论成功')
-      await getForumComments()
-    } else {
-      ElMessage.error(response.data.msg)
+  if(replyToParentCommentId.value == 0) {
+    try {
+      const response = await axios.post(sendCommentApi, {
+        post_id: forumId.value,
+        content: commentContent.value
+      })
+      if (response.data.code === 1) {
+        ElMessage.success('评论成功')
+        await getForumComments()
+      } else {
+        ElMessage.error(response.data.msg)
+      }
+    } catch (error) {
+      ElMessage.error('发送评论失败')
     }
-  } catch (error) {
-    ElMessage.error('发送评论失败')
-  }
-}
-// 非占楼评论回复
-const sendReplyCommentApi = '/api/insertReplyComment'
-const sendReplyComment = async () => {
-  if (!commentContent.value.trim()) {
-    ElMessage.warning('请输入评论内容')
-    return
-  }
-  updateCommentFirst()
-  resetForumPostValue()
-  try {
-    const pureContent = commentContent.value.replace(`回复${replyToUser.value}：`, '');
-    const response = await axios.post(sendReplyCommentApi, {
-      replay_type: replyToCommentId.value == 0 ? 0 : 1,
-      content: pureContent,
-      comment_id: replyToParentCommentId.value,
-      replay_comment_id: replyToCommentId.value,
-      replay_user_name: replyToUser.value
-    })
-    if (response.data.code === 1) {
-      ElMessage.success('评论成功')
-      await getCommentReplies()
-    } else {
-      ElMessage.error(response.data.msg)
+  } else {
+    try {
+      const pureContent = commentContent.value.replace(`回复${replyToUser.value}：`, '');
+      const response = await axios.post(sendReplyCommentApi, {
+        replay_type: replyToCommentId.value == 0 ? 0 : 1,
+        content: pureContent,
+        comment_id: replyToParentCommentId.value,
+        replay_comment_id: replyToCommentId.value,
+        replay_user_name: replyToUser.value
+      })
+      if (response.data.code === 1) {
+        ElMessage.success('评论成功')
+        await getCommentReplies()
+      } else {
+        ElMessage.error(response.data.msg)
+      }
+    } catch (error) {
+      ElMessage.error('发送评论失败')
     }
-  } catch (error) {
-    ElMessage.error('发送评论失败')
   }
-}
-const handleSendComment = () => {
-  replyToCommentId.value == 0 && replyToParentCommentId.value == 0 ? sendComment() : sendReplyComment()
 }
 
 
@@ -412,8 +402,25 @@ const collectPostApi = '/api/collectPost'
 const cancelCollectPostApi = '/api/cancelCollectPost'
 const userPostAction = async (api) => {
   try {
-    await axios.post(api, {
+    await axios.put(api, {
       post_id: forumId.value
+    }, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+  } catch (error) {
+    ElMessage.error('操作失败')
+  }
+}
+const userDeleteAction = async (api) => {
+  try {
+    await axios.delete(api, {
+      post_id: forumId.value
+    }, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
     })
   } catch (error) {
     ElMessage.error('操作失败')
@@ -428,7 +435,7 @@ const handleLike = () => {
     userPostAction(likePostApi)
   } else {
     forumPost.like_count--
-    userPostAction(cancelLikePostApi)
+    userDeleteAction(cancelLikePostApi)
   }
 }
 // 收藏功能
@@ -439,20 +446,68 @@ const handleCollect = () => {
     userPostAction(collectPostApi)
   } else {
     forumPost.collect_count--
-    userPostAction(cancelCollectPostApi)
+    userDeleteAction(cancelCollectPostApi)
   }
 }
 
 // 关注功能
 const handleFollow = () => {
   forumPost.is_followed = !forumPost.is_followed
+  if (forumPost.is_followed) {
+    followUser(forumPost.user_id)
+  } else {
+    unfollowUser(forumPost.user_id)
+  }
 }
+// 关注用户
+const followUserApi = '/api/focusUser'
+const followUser = async (userId) => {
+  try {
+    await axios.post(followUserApi, {
+      focus_user_id: userId
+    }, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+  } catch (error) {
+    ElMessage.error('关注用户失败');
+  }
+}
+// 取消关注用户
+const unfollowUserApi = '/api/cancelFocusUser'
+const unfollowUser = async (userId) => {
+  try {
+    await axios.delete(unfollowUserApi, {
+      focus_user_id: userId
+    }, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+  } catch (error) {
+    ElMessage.error('取消关注用户失败');
+  }
+}
+
+// 跳转用户详情页
+const goToPersonHomePage = (userId) => {
+  router.push({
+    path: '/forumUserPage',
+    query: {
+      userId: userId
+    }
+  })
+}
+
 
 onMounted(() => {
   forumId.value =  router.currentRoute.value.query.forumId
   getUserInfo()
   getForumDetail()
   getForumComments()
+  getPostLikeStatus()
+  getPostCollectStatus()
 })
 </script>
 
@@ -487,8 +542,8 @@ onMounted(() => {
     <!-- 作者信息区域 - 固定在底部 -->
     <div class="forum-author-fixed">
       <div class="author-info">
-        <img :src="forumPost.author_avatar" alt="作者头像" class="author-avatar"/>
-        <span class="author-name">{{forumPost.author_name}}</span>
+        <img :src="forumPost.author_avatar" alt="作者头像" class="author-avatar" @click="goToPersonHomePage(forumPost.user_id)"/>
+        <span class="author-name" @click="goToPersonHomePage(forumPost.user_id)">{{forumPost.author_name}}</span>
         <button 
           class="follow-button" 
           :class="{ 'followed': forumPost.is_followed }"
@@ -565,7 +620,7 @@ onMounted(() => {
           <div class="comment-actions">
             <button 
               class="send-button" 
-              @click="handleSendComment"   
+              @click="sendComment"   
               >
               发送
             </button>

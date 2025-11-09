@@ -96,6 +96,19 @@ const topics = ref([
   { id: 10, name: '网络安全' },
   { id: 11, name: 'Vue.js' }
 ])
+const getLabelApi = '/api/getPostLabels';
+const getLabels = async () => {
+  try {
+    const response = await axios.get(getLabelApi);
+    if (response.data.code === 1) {
+      topics.value = response.data.data;
+    } else {
+      ElMessage.error(response.data.msg);
+    }
+  } catch (error) {
+    ElMessage.error('获取话题列表失败，请重试');
+  }
+};
 // 话题下拉框显示
 function toggleTopicDropdown() {
   showTopicDropdown.value = !showTopicDropdown.value
@@ -247,19 +260,70 @@ const search = async () => {
 // 关注状态切换
 const toggleFollow = (forum) => {
   forum.is_followed = !forum.is_followed;
+  if (forum.is_followed) {
+    followUser(forum.user_id);
+  } else {
+    unfollowUser(forum.user_id);
+  }
 }
+// 关注用户
+const followUserApi = '/api/focusUser'
+const followUser = async (userId) => {
+  try {
+    await axios.post(followUserApi, {
+      focus_user_id: userId
+    }, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+  } catch (error) {
+    ElMessage.error('关注用户失败');
+  }
+}
+// 取消关注用户
+const unfollowUserApi = '/api/cancelFocusUser'
+const unfollowUser = async (userId) => {
+  try {
+    await axios.delete(unfollowUserApi, {
+      focus_user_id: userId
+    }, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+  } catch (error) {
+    ElMessage.error('取消关注用户失败');
+  }
+}
+
+
 
 // 帖子浏览量增加
 const incPageViewsByIdApi = '/api/incPageViewsById'
-  const incPageViewsById = async (forumId) => {
-    try {
-      await axios.post(incPageViewsByIdApi, {
-        forum_id: forumId
-      });
-    } catch (error) {
-      ElMessage.error('增加页面访问量失败');
-    }
+const incPageViewsById = async (forumId) => {
+  try {
+    await axios.post(incPageViewsByIdApi, {
+      post_id: forumId
+    }, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+  } catch (error) {
+    ElMessage.error('增加页面访问量失败');
   }
+}
+
+// 跳转用户主页
+const goToPersonHomePage = (userId) => {
+  router.push({
+    path: '/forumUserPage',
+    query: {
+      userId: userId
+    }
+  })
+}
 
 // 跳转帖子详情
 const goToPostDetail = (forumId) => {
@@ -288,11 +352,13 @@ const goToCreatorHomePage = () => {
 }
 
 
+
 onMounted(() => {
   getUserInfo();
   getOutstandingCreator();
   getOutstandingTopic();
   getForumPosts();
+  getLabels();
 })
 
 </script>
@@ -313,7 +379,7 @@ onMounted(() => {
       <!-- 侧边优秀创作者 -->
       <div class="sider-OutstandingCreator">
         <h3>优秀创作者</h3>
-        <div v-for="(creator, index) in outstandingCreators.list" :key="creator.id">
+        <div v-for="(creator, index) in outstandingCreators.list" :key="creator.id" @click="goToPersonHomePage(creator.id)">
           <!-- 序号 -->
           <p class="OutstandingCreator-index">{{ index + 1 }}</p>
           <img :src="creator.avatar" alt="" class="OutstandingCreator-avatar"/>
@@ -325,7 +391,7 @@ onMounted(() => {
       <!-- 侧边热门话题 -->
       <div class="sider-OutstandingTopic">
         <h3>近日热点</h3>
-        <div v-for="(topic, index) in outstandingTopics.list" :key="topic.id">
+        <div v-for="(topic, index) in outstandingTopics.list" :key="topic.id" @click="goToPostDetail(topic.id)">
           <!-- 序号 -->
           <p class="OutstandingTopic-index">{{ index + 1 }}</p>
           <p class="OutstandingTopic-title">{{ topic.title }}</p>

@@ -81,7 +81,7 @@ const updateUserInfo = async () => {
     }
     changeUserInfoShow()
     try {
-        const response = await axios.post(updateUserInfoApi, {
+        const response = await axios.put(updateUserInfoApi, {
             username: editForm.username,
             avatar: editForm.avatar,
             grade: editForm.grade,

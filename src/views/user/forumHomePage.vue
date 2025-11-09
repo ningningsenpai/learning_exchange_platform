@@ -81,7 +81,7 @@ const updateUserInfo = async () => {
     }
     changeUserInfoShow()
     try {
-        const response = await axios.post(updateUserInfoApi, {
+        const response = await axios.put(updateUserInfoApi, {
             username: editForm.username,
             avatar: editForm.avatar,
             grade: editForm.grade,
@@ -144,24 +144,24 @@ const socialInfo1 = reactive({
   user_name: '张三',
   user_avatar: 'src/static/image.png',
   summary: '这个人很懒，什么都没有留下。',
-  focusCount: 0,
-  fansCount: 0
+  focusCount: 2,
+  fansCount: 3
 })
 const socialInfo2 = reactive({
   id: 2,
   user_name: '张三',
   user_avatar: 'src/static/image.png',
   summary: '这个人很懒，什么都没有留下。',
-  focusCount: 0,
-  fansCount: 0
+  focusCount: 4,
+  fansCount: 5
 })
 const socialInfo3 = reactive({
   id: 3,
   user_name: '张三',
   user_avatar: 'src/static/image.png',
   summary: '这个人很懒，什么都没有留下。',
-  focusCount: 0,
-  fansCount: 0
+  focusCount: 4,
+  fansCount: 6
 })
 const socialInfos = reactive({
   focusList: [socialInfo1, socialInfo2],
@@ -169,9 +169,9 @@ const socialInfos = reactive({
   friendsList: [socialInfo2]
 })
 const socialCount = reactive({
-  focusCount: 0,
-  fansCount: 0,
-  friendsCount: 0,
+  focusCount: socialInfos.focusList.length,
+  fansCount: socialInfos.fansList.length,
+  friendsCount: socialInfos.friendsList.length,
 })
 const focusListApi = '/api/userCenter/getFocusUser'
 const fansListApi = '/api/userCenter/getFansUser'
@@ -183,19 +183,16 @@ const getSocialInfo = async () => {
       const friendsResponse = await axios.get(friendsListApi)
       if(focusResponse.data.code === 1) {
           socialInfos.focusList = focusResponse.data.data
-          socialCount.focusCount = focusResponse.data.data.length
       } else {
           ElMessage.error(focusResponse.data.msg)
       }
       if(fansResponse.data.code === 1) {
           socialInfos.fansList = fansResponse.data.data
-          socialCount.fansCount = fansResponse.data.data.length
       } else {
           ElMessage.error(fansResponse.data.msg)
       }
       if(friendsResponse.data.code === 1) {
           socialInfos.friendsList = friendsResponse.data.data
-          socialCount.friendsCount = friendsResponse.data.data.length
       } else {
           ElMessage.error(friendsResponse.data.msg)
       }
@@ -203,28 +200,97 @@ const getSocialInfo = async () => {
       ElMessage.error("获取社交信息失败，请重试")
   }
 }
+// 用户关注/取消关注
+const userFollowStatus = ref(false)
+const toggleUserFollow = async (user) => {
+  userFollowStatus.value = !userFollowStatus.value
+}
+// 关注用户
+const followUserApi = '/api/focusUser'
+const followUser = async (userId) => {
+  try {
+    await axios.post(followUserApi, {
+      focus_user_id: userId
+    }, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+  } catch (error) {
+    ElMessage.error('关注用户失败');
+  }
+}
+// 取消关注用户
+const unfollowUserApi = '/api/cancelFocusUser'
+const unfollowUser = async (userId) => {
+  try {
+    await axios.delete(unfollowUserApi, {
+      focus_user_id: userId
+    }, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+  } catch (error) {
+    ElMessage.error('取消关注用户失败');
+  }
+}
 
 // 信息展示区域显示内容控制
 const showUserPosts = ref(true)
 const showUserCollects = ref(false)
 const showUserDynamics = ref(false)
+const followStatus = ref(false)
+const fansStatus = ref(false)
+const friendsStatus = ref(false)
 function changeShow(type) {
   if(type === 'posts') {
     showUserPosts.value = true
     showUserCollects.value = false
     showUserDynamics.value = false
+    followStatus.value = false
+    fansStatus.value = false
+    friendsStatus.value = false
     getUserPost()
   } else if(type === 'collects') {
     showUserPosts.value = false
     showUserCollects.value = true
     showUserDynamics.value = false
+    followStatus.value = false
+    fansStatus.value = false
+    friendsStatus.value = false
     getUserCollects()
   } else if(type === 'dynamics') {
     showUserPosts.value = false
     showUserCollects.value = false
     showUserDynamics.value = true
+    followStatus.value = false
+    fansStatus.value = false
+    friendsStatus.value = false
     getUserDynamics()
+  } else if(type === 'follow') {
+    showUserPosts.value = false
+    showUserCollects.value = false
+    showUserDynamics.value = false
+    followStatus.value = true
+    fansStatus.value = false
+    friendsStatus.value = false
+  } else if(type === 'fans') {
+    showUserPosts.value = false
+    showUserCollects.value = false
+    showUserDynamics.value = false
+    followStatus.value = false
+    fansStatus.value = true
+    friendsStatus.value = false
+  } else if(type === 'friends') {
+    showUserPosts.value = false
+    showUserCollects.value = false
+    showUserDynamics.value = false
+    followStatus.value = false
+    fansStatus.value = false
+    friendsStatus.value = true
   }
+
 }
 
 // 获取个人帖子
@@ -313,11 +379,15 @@ const getUserCollects = async () => {
 const userDynamics = reactive({
   list: [forumPost1, forumPost1, forumPost1, forumPost1]
 })
-
+const dynamicsCount = ref(50)
 const getUserDynamicsApi = '/api/userCenter/getUserDynamics'
 const getUserDynamics = async () => {
   try {
-    const response = await axios.get(getUserDynamicsApi)
+    const response = await axios.get(getUserDynamicsApi, {
+      params: {
+        count: dynamicsCount.value
+      }
+    })
     if(response.data.code === 1) {
       userDynamics.list = response.data.data
     } else {
@@ -331,6 +401,11 @@ const getUserDynamics = async () => {
 // 关注状态切换
 const toggleFollow = (forum) => {
   forum.is_followed = !forum.is_followed;
+  if(forum.is_followed) {
+    followUser(forum.user_id)
+  } else {
+    unfollowUser(forum.user_id)
+  }
 }
 
 // 跳转帖子详情
@@ -343,12 +418,12 @@ const goToPostDetail = (forumId) => {
   })
 }
 
-// onMounted(() => {
-//     getUserInfo();
-//     getForumCount();
-//     getSocialInfo();
-//     getUserPost();
-// })
+onMounted(() => {
+    getUserInfo();
+    getForumCount();
+    getSocialInfo();
+    getUserPost();
+})
 
 
 
@@ -366,9 +441,9 @@ const goToPostDetail = (forumId) => {
           <p>{{ userInfo.username }}</p>
         </div>
         <div class="sider-social-info">
-          <span class="social-item">关注:{{ socialCount.focusCount }}</span>
-          <span class="social-item">粉丝:{{ socialCount.fansCount }}</span>
-          <span class="social-item">好友:{{ socialCount.friendsCount }}</span>  
+          <span class="social-item" :class="{'social-item-checked': followStatus}">关注:{{ socialCount.focusCount }}</span>
+          <span class="social-item" :class="{'social-item-checked': fansStatus}">粉丝:{{ socialCount.fansCount }}</span>
+          <span class="social-item" :class="{'social-item-checked': friendsStatus}">好友:{{ socialCount.friendsCount }}</span>  
         </div>
       </div>
       <!-- 功能按钮 -->
@@ -537,6 +612,72 @@ const goToPostDetail = (forumId) => {
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+          <!-- 关注用户显示区域 -->
+          <div v-for="user in socialInfos.focusList" :key="user.user_id" class="user-focus-item">
+            <div class="user-focus-header">
+              <div class="user-focus-avatar-container">
+                <img :src="user.avatar" alt="用户头像" class="user-focus-avatar"/>
+                <p class="user-focus-name">{{ user.user_name }}</p>
+              </div>
+              <button 
+                class="user-focus-unfollow" 
+                @click="toggleUserFollow(user)"
+                >
+                取消关注
+              </button>
+            </div>
+            <div class="user-focus-details">
+              <p class="user-summary">{{ user.summary }}</p>
+            </div>
+            <div class="user-focus-stats">
+              <span class="focus-count">关注 {{ user.focusCount }}</span>
+              <span class="fans-count">粉丝 {{ user.fansCount }}</span>
+            </div>
+          </div>
+          <!-- 粉丝用户显示区域 -->
+          <div v-for="user in socialInfos.fansList" :key="user.user_id" class="user-focus-item">
+            <div class="user-focus-header">
+              <div class="user-focus-avatar-container">
+                <img :src="user.avatar" alt="用户头像" class="user-focus-avatar"/>
+                <p class="user-focus-name">{{ user.user_name }}</p>
+              </div>
+              <button 
+                class="user-focus-unfollow" 
+                @click="toggleUserFollow(user)"
+                >
+                关注
+              </button>
+            </div>
+            <div class="user-focus-details">
+              <p class="user-summary">{{ user.summary }}</p>
+            </div>
+            <div class="user-focus-stats">
+              <span class="focus-count">关注 {{ user.focusCount }}</span>
+              <span class="fans-count">粉丝 {{ user.fansCount }}</span>
+            </div>
+          </div>
+          <!-- 好友用户显示区域 -->
+          <div v-for="user in socialInfos.friendsList" :key="user.user_id" class="user-focus-item">
+            <div class="user-focus-header">
+              <div class="user-focus-avatar-container">
+                <img :src="user.avatar" alt="用户头像" class="user-focus-avatar"/>
+                <p class="user-focus-name">{{ user.user_name }}</p>
+              </div>
+              <button 
+                class="user-focus-unfollow" 
+                @click="toggleUserFollow(user)"
+                >
+                取消关注
+              </button>
+            </div>
+            <div class="user-focus-details">
+              <p class="user-summary">{{ user.summary }}</p>
+            </div>
+            <div class="user-focus-stats">
+              <span class="focus-count">关注 {{ user.focusCount }}</span>
+              <span class="fans-count">粉丝 {{ user.fansCount }}</span>
             </div>
           </div>
         </div>
