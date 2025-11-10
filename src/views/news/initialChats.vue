@@ -89,7 +89,7 @@ const connectWebSocket = () => {
     // 接收消息
     ws.value.onmessage = (event) => {
       try {
-        const message = JSON.parse(event.data)
+        const message = JSON.parse(event.data.data)
         handleWebSocketMessage(message)
       } catch (error) {
         console.error('消息解析错误:', error)
@@ -165,13 +165,14 @@ const friendsData = reactive({
       name: '张三',
       avatar: 'src/static/image.png',
       messages: [
-        { id: 1, sender: 'friend', content: '你好！', time: '2023-10-10 10:30' },
-        { id: 2, sender: 'me', content: '你好，小明！', time: '2023-10-10 10:31' },
-        { id: 3, sender: 'friend', content: '最近怎么样？', time: '2023-10-10 10:32' },
-        { id: 4, sender: 'me', content: '还不错，你呢？', time: '2023-10-10 10:33' },
-        { id: 5, sender: 'friend', content: '我也挺好的，最近在学习Vue.js', time: '2023-10-10 10:35' },
-        { id: 6, sender: 'friend', content: '我也挺好的，最近在学习Vue.js', time: '2023-10-10 10:35' },
-        { id: 7, sender: 'friend', content: '我也挺好的，最近在学习Vue.js', time: '2023-10-10 10:35' },
+        { id: 1, type: 'text', sender: 'friend', content: '你好！', time: '2023-10-10 10:30' },
+        { id: 2, type: 'text', sender: 'me', content: '你好，小明！', time: '2023-10-10 10:31' },
+        { id: 3, type: 'text', sender: 'friend', content: '最近怎么样？', time: '2023-10-10 10:32' },
+        { id: 4, type: 'text', sender: 'me', content: '还不错，你呢？', time: '2023-10-10 10:33' },
+        { id: 5, type: 'text', sender: 'friend', content: '我也挺好的，最近在学习Vue.js', time: '2023-10-10 10:35' },
+        { id: 6, type: 'text', sender: 'friend', content: '我也挺好的，最近在学习Vue.js', time: '2023-10-10 10:35' },
+        { id: 7, type: 'text', sender: 'friend', content: '我也挺好的，最近在学习Vue.js', time: '2023-10-10 10:35' },
+        { id: 8, type: 'image', sender: 'friend', imageUrl: 'src/static/image.png', time: '2023-10-10 10:35' },
       ]
     },
     {
@@ -179,9 +180,9 @@ const friendsData = reactive({
       name: '张三',
       avatar: 'src/static/image.png',
       messages: [
-        { id: 1, sender: 'friend', content: '在吗？', time: '2023-10-10 15:20' },
-        { id: 2, sender: 'me', content: '在的，有什么事吗？', time: '2023-10-10 15:22' },
-        { id: 3, sender: 'friend', content: '想问一下作业的事情', time: '2023-10-10 15:23' }
+        { id: 1, type: 'text', sender: 'friend', content: '在吗？', time: '2023-10-10 15:20' },
+        { id: 2, type: 'text', sender: 'me', content: '在的，有什么事吗？', time: '2023-10-10 15:22' },
+        { id: 3, type: 'text', sender: 'friend', content: '想问一下作业的事情', time: '2023-10-10 15:23' }
       ]
     },
   ]
@@ -197,11 +198,12 @@ const getFriendData = async (userId) => {
         userId: userId
       }
     })
-    friendsDatas.list = response.data
+    friendsDatas.list = response.data.data
   } catch (error) {
     console.error('获取聊天记录失败:', error)
   }
 }
+
 
 // 响应式数据
 const activeFriend = ref(null)
@@ -268,27 +270,133 @@ const checkMessages = (friendId) => {
   }
 }
 
-// 发送信息
+// 发送消息文字和图片消息（webSocket使用）
+const sendMessageToWebSocket = (message) => {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify(message))
+  } else {
+    console.error('WebSocket 连接未打开')
+  }
+}
+// 发送文字消息
+const sendTextMessage = () => {
+  const message = {
+    id: activeFriend.value.id,
+    message: newMessage.value,
+  }
+  sendMessageToWebSocket(message)
+  newMessage.value = ''
+}
+// 上传图片
+const selectedFile = ref(null)
+const imagePreviewUrl = ref('')
+function handleImageUpload(event) {
+  const file = event.target.files[0]
+  if (!file) return
+  if (!file.type.startsWith('image/')) {
+    ElMessage.error('请选择图片文件')
+    return
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    ElMessage.error('图片大小不能超过5MB')
+    return
+  } 
+  selectedFile.value = file
+  // 创建预览URL
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    imagePreviewUrl.value = e.target.result
+  }
+  reader.readAsDataURL(file)
+}
+
+// 清除已选择的图片
+const clearSelectedImage = () => {
+  selectedFile.value = null
+  imagePreviewUrl.value = ''
+  // 重置文件输入框
+  const fileInput = document.querySelector('.image-upload-input')
+  if (fileInput) {
+    fileInput.value = ''
+  }
+}
+// 格式化文件大小显示
+const formatFileSize = (bytes) => {
+  if (!bytes || bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
+
+// 发送图片消息
+const sendImageMessage = () => {
+  const message = {
+    id: activeFriend.value.id,
+    message: selectedFile.value,
+  }
+  sendMessageToWebSocket(message)
+  selectedFile.value = null
+  imagePreviewUrl.value = ''
+}
+// 发送信息(前端渲染展示使用)
 const sendMessage = () => {
-  if (newMessage.value.trim() !== '' && activeFriend.value) {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  if (newMessage.value.trim() !== '' && activeFriend.value && !selectedFile.value) {
     const message = {
       id: 0,
       sender: 'me',
+      type: 'text',
       content: newMessage.value,
       time: `${year}-${month}-${day} ${hours}:${minutes}`
     }
     const friend = friendsDatas.list.find((item) => item.id === activeFriend.value.id)
     friend.messages.push(message)
-    newMessage.value = ''
     scrollToBottom()
   }
+  if(selectedFile.value && activeFriend.value && newMessage.value.trim() === '') {
+    const message = {
+      id: 0,
+      sender: 'me',
+      type: 'image',
+      imageUrl: imagePreviewUrl,
+      time: `${year}-${month}-${day} ${hours}:${minutes}`
+    }
+    const friend = friendsDatas.list.find((item) => item.id === activeFriend.value.id)
+    friend.messages.push(message)
+    scrollToBottom()
+  }
+}
+// 判断发送消息的类型
+const handleMessageType = () => {
+  if (selectedFile.value) {
+    sendMessage()
+    sendImageMessage()
+  } else {
+    sendMessage()
+    sendTextMessage()
+  }
+} 
+
+// 图片放大功能
+const enlargedImage = ref(null)
+const showImageModal = ref(false)
+
+// 打开图片放大模态框
+const openImageModal = (imageUrl) => {
+  enlargedImage.value = imageUrl
+  showImageModal.value = true
+}
+
+// 关闭图片放大模态框
+const closeImageModal = () => {
+  showImageModal.value = false
+  enlargedImage.value = null
 }
 
 // 监听消息变化，自动滚动到底部
@@ -439,6 +547,14 @@ onMounted(() => {
           <!-- 消息内容区域 -->
           <div class="message-content">
             <div class="message-text">{{ message.content }}</div>
+            <div v-if="message.imageUrl" class="message-image">
+              <img 
+                :src="message.imageUrl" 
+                alt="" 
+                class="image-content"
+                @click="openImageModal(message.imageUrl)"
+              >
+            </div>
             <div class="message-time">{{ message.time }}</div>
           </div>
         </div>
@@ -457,18 +573,55 @@ onMounted(() => {
       
       <!-- 输入区域 -->
       <div class="chat-input-area" v-if="activeFriend">
+        <!-- 图片预览区域 -->
+        <div class="image-preview" v-if="imagePreviewUrl">
+          <div class="preview-container">
+            <img :src="imagePreviewUrl" alt="图片预览" class="preview-image">
+            <div class="preview-info">
+               <span class="file-name">{{ selectedFile?.name }}</span>
+              <span class="file-size">{{ formatFileSize(selectedFile?.size) }}</span>
+            </div>
+            <button class="preview-remove" @click="clearSelectedImage">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+        </div>
+        
         <textarea 
           class="chat-input" 
           placeholder="输入消息..." 
           v-model="newMessage"
-          @keydown.enter.prevent="sendMessage"
+          @keydown.enter.prevent="handleMessageType"
           rows="3"
         ></textarea>
-        <button class="send-button" @click="sendMessage">
-          <i class="fas fa-paper-plane"></i>
-          发送
-        </button>
+        <div class="action-buttons">
+          <label class="image-upload-button">
+            <input 
+              type="file" 
+              accept="image/*" 
+              @change="handleImageUpload"
+              class="image-upload-input"
+              hidden
+            >
+            <i class="fas fa-image"></i>
+            {{ imagePreviewUrl ? '更换图片' : '上传图片' }}
+          </label>
+          <button class="send-button" @click="handleMessageType" :disabled="!newMessage.trim() && !selectedFile">
+            <i class="fas fa-paper-plane"></i>
+            发送
+          </button>
+        </div>
       </div>
+    </div>
+  </div>
+
+  <!-- 图片放大模态框 -->
+  <div v-if="showImageModal" class="image-modal" @click="closeImageModal">
+    <div class="modal-content" @click.stop>
+      <button class="modal-close" @click="closeImageModal">
+        <i class="fas fa-times"></i>
+      </button>
+      <img :src="enlargedImage" alt="放大图片" class="enlarged-image">
     </div>
   </div>
 </template>
@@ -848,6 +1001,8 @@ onMounted(() => {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   position: relative;
   word-wrap: break-word;
+  display: flex;
+  flex-direction: column;
 }
 
 .message.sent .message-content {
@@ -869,7 +1024,16 @@ onMounted(() => {
   word-break: break-word;
 }
 
+/* 图片消息样式 */
+.message-image {
+  max-width: 50px;
+  max-height: 50px;
+  border-radius: 12px;
+  margin-bottom: 12px;
+}
+
 .message-time {
+  margin-top: 20px;
   font-size: 11px;
   color: #9e9e9e;
   text-align: right;
@@ -941,19 +1105,6 @@ onMounted(() => {
   background: #a8a8a8;
 }
 
-.message-text {
-  font-size: 14px;
-  line-height: 1.5;
-  margin-bottom: 4px;
-  color: #333;
-}
-
-.message-time {
-  font-size: 11px;
-  color: #9E9E9E;
-  text-align: right;
-}
-
 .no-chat {
   flex: 1;
   display: flex;
@@ -985,77 +1136,216 @@ onMounted(() => {
   color: #81C784;
 }
 
-.chat-input-area {
-  padding: 15px;
-  background: white;
-  border-top: 1px solid #e8f5e8;
-  display: flex;
-  align-items: flex-end;
-  gap: 10px;
-}
-
-.input-tools {
-  display: flex;
-  gap: 6px;
-}
-
-.tool-button {
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
+/* 图片预览样式 */
+.image-preview {
+  margin-bottom: 5px;
+  padding: 12px;
   background: #f8faf8;
   border: 1px solid #e8f5e8;
-  color: #81C784;
+  border-radius: 8px;
+}
+
+.preview-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.preview-image {
+  width: 60px;
+  height: 60px;
+  border-radius: 6px;
+  object-fit: cover;
+  border: 1px solid #e0e0e0;
+}
+
+.preview-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.file-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+.file-size {
+  font-size: 12px;
+  color: #666;
+}
+
+.preview-remove {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 24px;
+  height: 24px;
+  background: #ff6b6b;
+  border: none;
+  border-radius: 50%;
+  color: white;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 12px;
   transition: all 0.3s ease;
 }
 
-.tool-button:hover {
-  background: #81C784;
-  color: white;
+.preview-remove:hover {
+  background: #ff5252;
+  transform: scale(1.1);
+}
+
+/* 聊天输入区域样式优化 */
+.chat-input-area {
+  padding: 16px;
+  background: #f8faf8;
+  border-top: 1px solid #e8f5e8;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .chat-input {
-  flex: 1;
-  padding: 10px 14px;
-  border: 1px solid #e8f5e8;
+  width: 95%;
+  padding: 12px 16px;
+  border: 1px solid #e0e0e0;
   border-radius: 8px;
-  resize: none;
+  resize: vertical;
   font-size: 14px;
-  outline: none;
-  transition: all 0.3s ease;
-  background: white;
+  font-family: inherit;
   line-height: 1.5;
-  min-height: 60px;
+  background: white;
+  transition: all 0.3s ease;
+  min-height: 80px;
   max-height: 120px;
 }
 
 .chat-input:focus {
+  outline: none;
   border-color: #81C784;
   box-shadow: 0 0 0 2px rgba(129, 199, 132, 0.1);
 }
 
+.action-buttons {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+}
+
+.image-upload-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #f0f9f4;
+  border: 1px solid #81C784;
+  border-radius: 6px;
+  padding: 8px 12px;
+  color: #2e7d32;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.image-upload-button:hover {
+  background: #e8f5e8;
+  transform: translateY(-1px);
+}
+
+.image-upload-button i {
+  font-size: 16px;
+}
+
 .send-button {
-  padding: 10px 20px;
   background: #81C784;
   color: white;
   border: none;
-  border-radius: 8px;
-  cursor: pointer;
+  border-radius: 20px;
+  padding: 10px 24px;
   font-size: 14px;
-  font-weight: 600;
+  cursor: pointer;
   transition: all 0.3s ease;
   display: flex;
   align-items: center;
   gap: 6px;
+  font-weight: 500;
 }
 
-.send-button:hover {
+.send-button:hover:not(:disabled) {
   background: #66BB6A;
   transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(129, 199, 132, 0.3);
+}
+
+.send-button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.send-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .image-preview {
+    padding: 8px;
+    margin-bottom: 8px;
+  }
+  
+  .preview-container {
+    gap: 8px;
+  }
+  
+  .preview-image {
+    width: 50px;
+    height: 50px;
+  }
+  
+  .file-name {
+    max-width: 150px;
+    font-size: 13px;
+  }
+  
+  .file-size {
+    font-size: 11px;
+  }
+  
+  .chat-input-area {
+    padding: 12px;
+    gap: 8px;
+  }
+  
+  .action-buttons {
+    gap: 8px;
+  }
+  
+  .image-upload-button {
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+  
+  .chat-input {
+    padding: 10px 12px;
+    min-height: 70px;
+  }
+  
+  .send-button {
+    padding: 8px 20px;
+    font-size: 13px;
+  }
 }
 
 /* 滚动条样式 */
@@ -1106,6 +1396,108 @@ onMounted(() => {
   
   .chat-area {
     width: 100%;
+  }
+}
+
+/* 图片放大模态框样式 */
+.image-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease;
+}
+
+.modal-content {
+  position: relative;
+  max-width: 90%;
+  max-height: 90%;
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.modal-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 36px;
+  height: 36px;
+  background: rgba(0, 0, 0, 0.5);
+  border: none;
+  border-radius: 50%;
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  transition: all 0.3s ease;
+  z-index: 10;
+}
+
+.modal-close:hover {
+  background: rgba(0, 0, 0, 0.7);
+  transform: scale(1.1);
+}
+
+.enlarged-image {
+  max-width: 100%;
+  max-height: 80vh;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+/* 消息图片样式优化 */
+
+.image-content {
+  max-width: 300px;
+  max-height: 300px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 1px solid #e0e0e0;
+}
+
+.image-content:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* 动画效果 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .image-content {
+    max-width: 250px;
+    max-height: 250px;
+  }
+  
+  .modal-content {
+    max-width: 95%;
+    max-height: 95%;
+    padding: 15px;
+  }
+  
+  .modal-close {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
   }
 }
 </style>
