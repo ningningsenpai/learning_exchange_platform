@@ -6,12 +6,12 @@ import axios from 'axios'
 // 获取用户信息
 const userInfoApi = '/api/getUserInfo'
 const userInfo = reactive({
-    id: 1,
-    username: '张三',
-    avatar: 'src/static/image.png',
-    grade: '大一',
-    major: '计算机科学与技术',
-    summary: '这个人很懒，什么都没有留下。',
+    id: 0,
+    username: '',
+    avatar: '',
+    grade: '',
+    major: '',
+    summary: '',
 })
 const getUserInfo = async () => {
     try {
@@ -39,7 +39,7 @@ const chatData = reactive({
     },
     {
       id: 2,
-      name: '李四',
+      name: '张三',
       avatar: 'src/static/image.png',
       content:'消息内容',
       sendTime:"2023-10-10 10:30",
@@ -49,11 +49,11 @@ const chatData = reactive({
 })
 
 const chatDatas = reactive({
-    List: [chatData.list[0], chatData.list[1]]
+    List: [chatData.list[1], chatData.list[0]]
 })
 // 在线好友数据
 const onlineFriends = reactive({
-  list: [1]
+  list: []
 })
 // 判断是否在线
 const isOnline = (friendId) => {
@@ -65,12 +65,26 @@ const isOnline = (friendId) => {
 const ws = ref(null)
 const isConnected = ref(false)
 const connectionStatus = ref('disconnected')
+const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 const wsConfig = reactive({
-  url: 'ws://localhost:8080/ws/chat', // WebSocket服务器地址
+  url: protocol + '//10.244.193.207:8080/websocket/chat', // WebSocket服务器地址
   reconnectInterval: 3000, // 重连间隔(毫秒)
   maxReconnectAttempts: 5, // 最大重连次数
   reconnectAttempts: 0
 })
+// 重连处理
+const handleReconnect = () => {
+  if (wsConfig.reconnectAttempts < wsConfig.maxReconnectAttempts) {
+    wsConfig.reconnectAttempts++
+    console.log(`尝试重连... (${wsConfig.reconnectAttempts}/${wsConfig.maxReconnectAttempts})`)
+    setTimeout(() => {
+      connectWebSocket()
+    }, wsConfig.reconnectInterval)
+  } else {
+    console.error('达到最大重连次数，停止重连')
+    ElMessage.error('WebSocket连接失败，请检查服务器状态')
+  }
+}
 const connectWebSocket = () => {
   try {
     // 如果已有连接，先关闭
@@ -188,7 +202,7 @@ const friendsData = reactive({
   ]
 })
 const friendsDatas = reactive({
-  list: [friendsData.list[0], friendsData.list[1]]
+  list: []
 })
 const friendsDataApi = '/api/chat/open'
 const getFriendData = async (userId) => {
@@ -272,8 +286,8 @@ const checkMessages = (friendId) => {
 
 // 发送消息文字和图片消息（webSocket使用）
 const sendMessageToWebSocket = (message) => {
-  if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify(message))
+  if (ws.value && ws.value.readyState === WebSocket.OPEN) {
+    ws.value.send(JSON.stringify(message))
   } else {
     console.error('WebSocket 连接未打开')
   }
@@ -347,7 +361,7 @@ const sendMessage = () => {
   const day = String(now.getDate()).padStart(2, '0');
   const hours = String(now.getHours()).padStart(2, '0');
   const minutes = String(now.getMinutes()).padStart(2, '0');
-  if (newMessage.value.trim() !== '' && activeFriend.value && !selectedFile.value) {
+  if (newMessage.value !== '' && activeFriend.value && !selectedFile.value) {
     const message = {
       id: 0,
       sender: 'me',
@@ -359,7 +373,7 @@ const sendMessage = () => {
     friend.messages.push(message)
     scrollToBottom()
   }
-  if(selectedFile.value && activeFriend.value && newMessage.value.trim() === '') {
+  if(selectedFile.value && activeFriend.value && newMessage.value === '') {
     const message = {
       id: 0,
       sender: 'me',
@@ -420,6 +434,7 @@ onMounted(() => {
   if (activeFriend.value) {
     scrollToBottom()
   }
+  connectWebSocket()
 })
 </script>
 

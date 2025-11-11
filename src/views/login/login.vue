@@ -1,8 +1,9 @@
 <script setup>
-  import { reactive, onMounted } from 'vue'
+  import { reactive, onMounted, ref } from 'vue'
   import { ElMessage } from 'element-plus'
   import axios from 'axios'
   import qs from 'qs' 
+  import router from '@/router'
 
   const loginAPI = '/api/login'
 
@@ -39,14 +40,17 @@
     return response.data
   }
 
+  const JWT_TOKEN = ref('')
   const onSubmit = async() => {
     try {
       const response = await login(form)
       if (response.code == 1) {
-        ElMessage.success(response.msg)
-        router.push({name: 'navigation'})
+        JWT_TOKEN.value = response.data.data
+        console.log(JWT_TOKEN.value)
+        gotoNavigation()
+        ElMessage.success(response.data.msg)
       } else {
-        ElMessage.error(response.msg)
+        ElMessage.error(response.data.msg)
         // 显示验证码输入框
         document.querySelector('.code-item').style.display = 'block'
       }
@@ -54,6 +58,16 @@
       ElMessage.error(error.message)
     }
   }
+
+const gotoNavigation = () => {
+  router.push({
+    path: '/initialChats',
+    query: {
+        token: JWT_TOKEN.value
+    }
+  })
+}
+
 </script>
 
 <template>

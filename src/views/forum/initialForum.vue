@@ -4,11 +4,12 @@ import { ElMessage} from 'element-plus';
 import axios from 'axios';
 import router from '@/router'
 
+const JWT_TOKEN = ref('')
 // 获取当前登录用户的信息(空则未登录)
 const userInfo = reactive({
-  id: '1',
-  username: '张三哈哈哈',
-  avatar: 'src/static/image.png'
+  id: '',
+  username: '',
+  avatar: ''
 })
 const userInfoApi = '/api/getUserInfo'
 const getUserInfo = async () => {
@@ -31,7 +32,7 @@ const OutstandingCreator = reactive({
   avatar: 'src/static/image.png'
 })
 const outstandingCreators = reactive({
-  list: [OutstandingCreator, OutstandingCreator, OutstandingCreator, OutstandingCreator, OutstandingCreator]
+  list: []
 })
 const OutstandingCreatorApi = '/api/getOutstandingCreator'
 const getOutstandingCreator = async () => {
@@ -55,7 +56,7 @@ const outstandingTopic = reactive({
   title: '摸鱼摸鱼好好好好好好快乐'
 })
 const outstandingTopics = reactive({
-  list: [outstandingTopic, outstandingTopic, outstandingTopic, outstandingTopic, outstandingTopic, outstandingTopic, outstandingTopic, outstandingTopic, outstandingTopic, outstandingTopic]
+  list: []
 })
 const OutstandingTopicApi = '/api/getOutstandingTopic'
 const getOutstandingTopic = async () => {
@@ -189,7 +190,7 @@ const forumPost1 = reactive({
   is_followed: true
 })
 const forumPosts = reactive({
-  list: [forumPost, forumPost1, forumPost, forumPost1, forumPost, forumPost1, forumPost, forumPost1]
+  list: [forumPost]
 })
 // 获取推荐帖子对象列表
 const getForumPostsApi = '/api/getRecommendedPosts'
@@ -359,6 +360,7 @@ onMounted(() => {
   getOutstandingTopic();
   getForumPosts();
   getLabels();
+  JWT_TOKEN.value = router.currentRoute.value.query.token;
 })
 
 </script>

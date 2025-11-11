@@ -155,7 +155,7 @@ const forumPost1 = reactive({
   is_followed: true
 })
 const forumPosts = reactive({
-  list: [forumPost, forumPost1, forumPost, forumPost1, forumPost, forumPost1, forumPost, forumPost1]
+  list: [forumPost]
 })
 const collationWay = ref('time')
 // 切换排序方式

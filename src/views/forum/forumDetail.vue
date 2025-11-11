@@ -71,66 +71,7 @@ const getForumDetail = async () => {
 
 // 评论数据结构
 const comments = reactive({
-  List: [
-    {
-      id: 1,
-      content: '这个帖子写得真好，学到了很多！',
-      user_avatar: 'src/static/image.png',
-      user_id: 1,
-      user_name: '学习爱好者',
-      create_time: '2024-06-01 10:30:00',
-      reply_count: 2,
-      replies: [
-        {
-          id: 1,
-          comment_id: 1,
-          replay_type: 0,
-          replay_comment_id: 0,
-          replay_user_name: null,
-          content: '我也觉得写得不错，特别是关于Vue的部分',
-          user_id: 2,
-          user_avatar: 'src/static/image.png',
-          user_name: '前端开发者',
-          create_time: '2024-06-01 11:00:00'
-        },
-        {
-          id: 2,
-          comment_id: 1,
-          replay_type: 1,
-          replay_comment_id: 1,
-          replay_user_name: '前端开发者',
-          content: '感谢分享，很有帮助！',
-          user_id: 3,
-          user_avatar: 'src/static/image.png',
-          user_name: '新手程序员',
-          create_time: '2024-06-01 11:30:00'
-        },
-      ]
-    },
-    {
-      id: 2,
-      content: '有没有更详细的代码示例？',
-      user_avatar: 'src/static/image.png',
-      user_id: 4,
-      user_name: '代码探索者',
-      create_time: '2024-06-01 12:00:00',
-      reply_count: 1,
-      replies: [
-        {
-          id: 1,
-          comment_id: 0,
-          replay_type: 0,
-          replay_comment_id: 0,
-          replay_user_name: null,
-          content: '作者可以补充一些实际项目的代码',
-          user_id: 5,
-          user_avatar: 'src/static/image.png',
-          user_name: '项目实践者',
-          create_time: '2024-06-01 12:30:00'
-        }
-      ]
-    }
-  ]
+  List: []
 })
 
 // 评论弹窗控制
@@ -195,67 +136,67 @@ const getCommentReplies = async (comment) => {
 }
 
 // 前端动态更新评论
-const formatDateTime = (date = new Date()) => {
-  const year = date.getFullYear();
-  const month = date.getMonth() + 1;
-  const day = date.getDate();
-  const hours = date.getHours();
-  const minutes = date.getMinutes();
-  const seconds = date.getSeconds();
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-};
-const updateCommentFirst = () => {
-  // 占楼评论
-  if(replyToParentCommentId.value == 0 && replyToCommentId.value == 0) {
-    comments.List.push({
-      id: comments.List.length + 1,
-      content: commentContent.value,
-      user_avatar: userInfo.avatar,
-      user_id: userInfo.id,
-      user_name: userInfo.username,
-      create_time: formatDateTime(),
-      reply_count: 0,
-      replies: []
-    })
-    forumPost.comment_count++
-  } else if (replyToParentCommentId.value != 0 && replyToCommentId.value == 0) {
-    const parentComment = comments.List.find(comment => comment.id === replyToParentCommentId.value)
-    const pureContent = commentContent.value.replace(`回复${replyToUser.value}：`, '');
-    if (parentComment) {
-      parentComment.replies.push({
-        id: parentComment.replies.length + 1,
-        comment_id: replyToParentCommentId.value,
-        replay_type: 0,
-        replay_comment_id: 0,
-        replay_user_name: null,
-        content: pureContent,
-        user_id: userInfo.id,
-        user_avatar: userInfo.avatar,
-        user_name: userInfo.username,
-        create_time: formatDateTime()
-      })
-      parentComment.reply_count++
-    }
-  } else if (replyToParentCommentId.value != 0 && replyToCommentId.value != 0) {
-    const parentComment = comments.List.find(comment => comment.id === replyToParentCommentId.value)
-    const pureContent = commentContent.value.replace(`回复${replyToUser.value}：`, '');
-    if (parentComment) {
-      parentComment.replies.push({
-        id: parentComment.replies.length + 1,
-        comment_id: replyToParentCommentId.value,
-        replay_type: 1,
-        replay_comment_id: replyToCommentId.value,
-        replay_user_name: replyToUser.value,
-        content: pureContent,
-        user_id: userInfo.id,
-        user_avatar: userInfo.avatar,
-        user_name: userInfo.username,
-        create_time: formatDateTime()
-      })
-      parentComment.reply_count++
-    }
-  }
-}
+// const formatDateTime = (date = new Date()) => {
+//   const year = date.getFullYear();
+//   const month = date.getMonth() + 1;
+//   const day = date.getDate();
+//   const hours = date.getHours();
+//   const minutes = date.getMinutes();
+//   const seconds = date.getSeconds();
+//   return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+// };
+// const updateCommentFirst = () => {
+//   // 占楼评论
+//   if(replyToParentCommentId.value == 0 && replyToCommentId.value == 0) {
+//     comments.List.push({
+//       id: comments.List.length + 1,
+//       content: commentContent.value,
+//       user_avatar: userInfo.avatar,
+//       user_id: userInfo.id,
+//       user_name: userInfo.username,
+//       create_time: formatDateTime(),
+//       reply_count: 0,
+//       replies: []
+//     })
+//     forumPost.comment_count++
+//   } else if (replyToParentCommentId.value != 0 && replyToCommentId.value == 0) {
+//     const parentComment = comments.List.find(comment => comment.id === replyToParentCommentId.value)
+//     const pureContent = commentContent.value.replace(`回复${replyToUser.value}：`, '');
+//     if (parentComment) {
+//       parentComment.replies.push({
+//         id: parentComment.replies.length + 1,
+//         comment_id: replyToParentCommentId.value,
+//         replay_type: 0,
+//         replay_comment_id: 0,
+//         replay_user_name: null,
+//         content: pureContent,
+//         user_id: userInfo.id,
+//         user_avatar: userInfo.avatar,
+//         user_name: userInfo.username,
+//         create_time: formatDateTime()
+//       })
+//       parentComment.reply_count++
+//     }
+//   } else if (replyToParentCommentId.value != 0 && replyToCommentId.value != 0) {
+//     const parentComment = comments.List.find(comment => comment.id === replyToParentCommentId.value)
+//     const pureContent = commentContent.value.replace(`回复${replyToUser.value}：`, '');
+//     if (parentComment) {
+//       parentComment.replies.push({
+//         id: parentComment.replies.length + 1,
+//         comment_id: replyToParentCommentId.value,
+//         replay_type: 1,
+//         replay_comment_id: replyToCommentId.value,
+//         replay_user_name: replyToUser.value,
+//         content: pureContent,
+//         user_id: userInfo.id,
+//         user_avatar: userInfo.avatar,
+//         user_name: userInfo.username,
+//         create_time: formatDateTime()
+//       })
+//       parentComment.reply_count++
+//     }
+//   }
+// }
 
 // 发送评论接口
 // 占楼评论
@@ -265,13 +206,18 @@ const sendComment = async () => {
     ElMessage.warning('请输入评论内容')
     return
   }
-  updateCommentFirst()
-  resetForumPostValue()
+  console.log(commentContent.value)
+  // updateCommentFirst()
   if(replyToParentCommentId.value == 0) {
     try {
       const response = await axios.post(sendCommentApi, {
+        comment_type: 'comment',
         post_id: forumId.value,
         content: commentContent.value
+      }, {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
       })
       if (response.data.code === 1) {
         ElMessage.success('评论成功')
@@ -283,25 +229,31 @@ const sendComment = async () => {
       ElMessage.error('发送评论失败')
     }
   } else {
-    try {
-      const pureContent = commentContent.value.replace(`回复${replyToUser.value}：`, '');
-      const response = await axios.post(sendReplyCommentApi, {
-        replay_type: replyToCommentId.value == 0 ? 0 : 1,
-        content: pureContent,
-        comment_id: replyToParentCommentId.value,
-        replay_comment_id: replyToCommentId.value,
-        replay_user_name: replyToUser.value
-      })
-      if (response.data.code === 1) {
-        ElMessage.success('评论成功')
-        await getCommentReplies()
-      } else {
-        ElMessage.error(response.data.msg)
+        try {
+          const pureContent = commentContent.value.replace(`回复${replyToUser.value}：`, '');
+          const response = await axios.post(sendCommentApi, {
+            comment_type: 'reply',
+            replay_type: replyToCommentId.value == 0 ? 'comment' : 'reply',
+            content: pureContent,
+            comment_id: replyToParentCommentId.value,
+            replay_comment_id: replyToCommentId.value,
+            replay_user_name: replyToUser.value
+          }, {
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded'
+            }
+          })
+          if (response.data.code === 1) {
+            ElMessage.success('评论成功')
+            await getCommentReplies()
+          } else {
+            ElMessage.error(response.data.msg)
+          }
+        } catch (error) {
+          ElMessage.error('发送评论失败')
+        }
       }
-    } catch (error) {
-      ElMessage.error('发送评论失败')
-    }
-  }
+  resetForumPostValue()
 }
 
 
@@ -396,17 +348,17 @@ const getPostCollectStatus = async () => {
 
 
 // 点赞收藏增加减少
-const likePostApi = '/api/likePost'
-const cancelLikePostApi = '/api/cancelLikePost'
-const collectPostApi = '/api/collectPost'
-const cancelCollectPostApi = '/api/cancelCollectPost'
+const likePostApi = '/api/user/likePost'
+const cancelLikePostApi = '/api/user/cancelLikePost'
+const collectPostApi = '/api/user/collectPost'
+const cancelCollectPostApi = '/api/user/cancelCollectPost'
 const userPostAction = async (api) => {
   try {
     await axios.put(api, {
       post_id: forumId.value
     }, {
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/x-www-form-urlencoded'
       }
     })
   } catch (error) {
@@ -419,7 +371,7 @@ const userDeleteAction = async (api) => {
       post_id: forumId.value
     }, {
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/x-www-form-urlencoded'
       }
     })
   } catch (error) {
@@ -467,7 +419,7 @@ const followUser = async (userId) => {
       focus_user_id: userId
     }, {
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/x-www-form-urlencoded'
       }
     });
   } catch (error) {
@@ -482,7 +434,7 @@ const unfollowUser = async (userId) => {
       focus_user_id: userId
     }, {
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/x-www-form-urlencoded'
       }
     });
   } catch (error) {

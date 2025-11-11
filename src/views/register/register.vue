@@ -1,5 +1,5 @@
 <script setup>
-  import { reactive, onMounted } from 'vue'
+  import { reactive, onMounted, ref } from 'vue'
   import { ElMessage } from 'element-plus'
   import axios from 'axios'
   import qs from 'qs' 
@@ -18,12 +18,12 @@
   })
 
    //获取验证码
-  let  codeImage = ''
+  const codeImage = ref('')
   const getCaptcha = async () => {
     try {
       const response = await axios.get('/api/captcha')
       if(response.data.code == 1) {
-        form.codeImage = `data:image/jpeg;base64,${response.data.data.body}`
+        codeImage.value = `data:image/jpeg;base64,${response.data.data.body}`
       } else {
         ElMessage.error(response.data.msg)
       }
