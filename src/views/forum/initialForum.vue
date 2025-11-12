@@ -1,10 +1,13 @@
 <script setup>
 import { reactive, onMounted, ref} from 'vue';
 import { ElMessage} from 'element-plus';
+import { useUserStore } from '@/stores/userStore.js'
 import axios from 'axios';
 import router from '@/router'
 
-const JWT_TOKEN = ref('')
+// 获取用户存储实例
+const userStore = useUserStore()
+const JWT_TOKEN = userStore.token
 // 获取当前登录用户的信息(空则未登录)
 const userInfo = reactive({
   id: '',
@@ -13,7 +16,13 @@ const userInfo = reactive({
 })
 const userInfoApi = '/api/getUserInfo'
 const getUserInfo = async () => {
-  const response = await axios.get(userInfoApi, { withCredentials: true });
+  console.log(JWT_TOKEN)
+  const response = await axios.get(userInfoApi, {
+    headers: {
+      'token': JWT_TOKEN,
+      'Content-Type': 'application/x-www-form-urlencoded'
+    }
+  });
   if (response.data.code === 1) {
     userInfo.id = response.data.data.id;
     userInfo.username = response.data.data.username;
@@ -37,7 +46,12 @@ const outstandingCreators = reactive({
 const OutstandingCreatorApi = '/api/getOutstandingCreator'
 const getOutstandingCreator = async () => {
   try {
-    const response = await axios.get(OutstandingCreatorApi);
+    const response = await axios.get(OutstandingCreatorApi, {
+      headers: {
+        'token': JWT_TOKEN,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+    });
     if (response.data.code === 1) {
       outstandingCreators.list = response.data.data;
     } else {
@@ -58,10 +72,15 @@ const outstandingTopic = reactive({
 const outstandingTopics = reactive({
   list: []
 })
-const OutstandingTopicApi = '/api/getOutstandingTopic'
-const getOutstandingTopic = async () => {
+const OutstandingTopicApi = '/api/getPopularTopic'
+const getPopularTopic = async () => {
   try {
-    const response = await axios.get(OutstandingTopicApi);
+    const response = await axios.get(OutstandingTopicApi, {
+      headers: {
+        'token': JWT_TOKEN,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+    });
     if (response.data.code === 1) {
       outstandingTopics.list = response.data.data;
     } else {
@@ -84,23 +103,19 @@ function handleFilterClick(filterType) {
 // 话题相关状态
 const showTopicDropdown = ref(false)
 const selectedTopic = ref('')
+// 话题列表
 const topics = ref([
-  { id: 1, name: '前端开发' },
-  { id: 2, name: '后端开发' },
-  { id: 3, name: '移动开发' },
-  { id: 4, name: '人工智能' },
-  { id: 5, name: '云计算' },
-  { id: 6, name: '大数据' },
-  { id: 7, name: '区块链' },
-  { id: 8, name: '物联网' },
-  { id: 9, name: '数据库' },
-  { id: 10, name: '网络安全' },
-  { id: 11, name: 'Vue.js' }
+
 ])
 const getLabelApi = '/api/getPostLabels';
 const getLabels = async () => {
   try {
-    const response = await axios.get(getLabelApi);
+    const response = await axios.get(getLabelApi, {
+      headers: {
+        'token': JWT_TOKEN,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+    });
     if (response.data.code === 1) {
       topics.value = response.data.data;
     } else {
@@ -113,36 +128,94 @@ const getLabels = async () => {
 // 话题下拉框显示
 function toggleTopicDropdown() {
   showTopicDropdown.value = !showTopicDropdown.value
+  showSubClassifyDropdown.value = false
 }
-// 选择话题
 function selectTopic(topic) {
   selectedTopic.value = topic.name
   showTopicDropdown.value = false
   search();
 }
-// 移除已选话题
 function removeTopic() {
   selectedTopic.value = ''
 }
-// 点击外部关闭下拉框
-function handleClickOutside(event) {
+function handleTopicClickOutside(event) {
   const topicSelector = event.target.closest('.topic-selector')
   if (!topicSelector) {
     showTopicDropdown.value = false
   }
 }
+
+// 子分类
+const showSubClassifyDropdown = ref(false)
+const selectedSubClassify = ref('')
+const postClassifiesApi = '/api/getPostClassifies';
+const postClassifies = ref([
+
+])
+const getPostClassifies = async () => {
+  try {
+    const response = await axios.get(postClassifiesApi, {
+      headers: {
+        'token': JWT_TOKEN,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+    });
+    if (response.data.code === 1) {
+      postClassifies.value = response.data.data;
+    } else {
+      ElMessage.error(response.data.msg);
+    }
+  } catch (error) {
+    ElMessage.error('获取帖子分类失败，请重试');
+  }
+};
+// 子分类
+function toggleSubClassifyDropdown() {
+  showSubClassifyDropdown.value = !showSubClassifyDropdown.value
+  showTopicDropdown.value = false
+}
+function selectSubClassify(subClassify) {
+  selectedSubClassify.value = subClassify.name
+  showSubClassifyDropdown.value = false
+  search();
+}
+function removeSubClassify() {
+  selectedSubClassify.value = ''
+}
+function handleSubClassifyClickOutside(event) {
+  const subClassifySelector = event.target.closest('.topic-selector')
+  if (!subClassifySelector) {
+    showSubClassifyDropdown.value = false
+  }
+}
+
 // 添加点击外部事件监听
-window.addEventListener('click', handleClickOutside)
+window.addEventListener('click', (event) => {
+  handleTopicClickOutside(event)
+  handleSubClassifyClickOutside(event)
+})
 
 // 帖子标签点击搜索
 function forumLabelSearch(label) {
-  for (const topic of topics.value) {
-    if (topic.name === label) {
-      selectedTopic.value = topic.name
-      search();
-      break;
-    }
+  selectedTopic.value = label
+  const selectedTopic = topics.value.find(topic => topic.name === label)
+  if (selectedTopic) {
+    selectedTopic.value = selectedTopic.name
+    showTopicDropdown.value = false
+    search();
   }
+  selectedTopic.value = ''
+}
+// 帖子子分类点击搜索
+function forumSubClassifySearch(subClassify) {
+  selectedSubClassify.value = subClassify
+  const selectedSubClassify = postClassifies.value.find(classify => classify.name === subClassify)
+  if (selectedSubClassify) {
+    selectedSubClassify.value = selectedSubClassify.name
+    showSubClassifyDropdown.value = false
+    search();
+  }
+  selectedSubClassify.value = ''
 }
 
 
@@ -190,13 +263,21 @@ const forumPost1 = reactive({
   is_followed: true
 })
 const forumPosts = reactive({
-  list: [forumPost]
+  list: []
 })
 // 获取推荐帖子对象列表
 const getForumPostsApi = '/api/getRecommendedPosts'
 const getForumPosts = async () => {
   try {
-    const response = await axios.get(getForumPostsApi);
+    const response = await axios.get(getForumPostsApi, {
+      params: {
+        limit: 30
+      },
+      headers: {
+        'token': JWT_TOKEN,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+    });
     if (response.data.code === 1) {
       forumPosts.list = response.data.data;
     } else {
@@ -218,13 +299,19 @@ const buttonSearch = async () => {
     return;
   }
   const collation = filterActive.value;
-  const topic = selectedTopic.value;
+  const label = selectedTopic.value;
+  const classify = selectedSubClassify.value;
   try {
     const response = await axios.get(searchApi, {
+      headers: {
+        'token': JWT_TOKEN,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
       params: {
         keyword: searchText.text,
         collation: collation,
-        topic: topic
+        label: label,
+        classify: classify
       }
     });
     if (response.data.code === 1) {
@@ -239,13 +326,19 @@ const buttonSearch = async () => {
 // 排序按钮或话题选择搜索（允许搜索框为空）
 const search = async () => {
   const collation = filterActive.value;
-  const topic = selectedTopic.value;
+  const label = selectedTopic.value;
+  const classify = selectedSubClassify.value;
   try {
     const response = await axios.get(searchApi, {
+      headers: {
+        'token': JWT_TOKEN,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
       params: {
         keyword: searchText.text,
         collation: collation,
-        topic: topic
+        label: label,
+        classify: classify
       }
     });
     if (response.data.code === 1) {
@@ -275,7 +368,8 @@ const followUser = async (userId) => {
       focus_user_id: userId
     }, {
       headers: {
-        'Content-Type': 'application/json'
+        'token': JWT_TOKEN,
+        'Content-Type': 'application/x-www-form-urlencoded'
       }
     });
   } catch (error) {
@@ -290,7 +384,8 @@ const unfollowUser = async (userId) => {
       focus_user_id: userId
     }, {
       headers: {
-        'Content-Type': 'application/json'
+        'token': JWT_TOKEN,
+        'Content-Type': 'application/x-www-form-urlencoded'
       }
     });
   } catch (error) {
@@ -308,6 +403,7 @@ const incPageViewsById = async (forumId) => {
       post_id: forumId
     }, {
       headers: {
+        'token': JWT_TOKEN,
         'Content-Type': 'application/json'
       }
     });
@@ -357,10 +453,10 @@ const goToCreatorHomePage = () => {
 onMounted(() => {
   getUserInfo();
   getOutstandingCreator();
-  getOutstandingTopic();
+  getPopularTopic();
   getForumPosts();
   getLabels();
-  JWT_TOKEN.value = router.currentRoute.value.query.token;
+  getPostClassifies()
 })
 
 </script>
@@ -428,6 +524,19 @@ onMounted(() => {
           <button class="filter-btn" :class="{'active': filterActive === 'new'}" @click="handleFilterClick('new')">最新</button>
         </div>
         <div class="filter-right">
+          <!-- 子分类选择区域 -->
+           <div class="topic-selector">
+            <button class="filter-btn topic-btn" @click="toggleSubClassifyDropdown">
+              {{ selectedSubClassify || '子分类' }}
+              <span v-if="selectedSubClassify" class="remove-topic" @click.stop="removeSubClassify">&times;</span>
+            </button>
+            <!-- 子分类下拉弹窗 -->
+            <div v-if="showSubClassifyDropdown" class="topic-dropdown">
+              <div v-for="subClassify in postClassifies" :key="subClassify.id" class="topic-item" @click="selectSubClassify(subClassify)">
+                {{ subClassify }}
+              </div>
+            </div>
+          </div>
           <!-- 话题选择区域 -->
           <div class="topic-selector">
             <button class="filter-btn topic-btn" @click="toggleTopicDropdown">
@@ -437,7 +546,7 @@ onMounted(() => {
             <!-- 话题下拉弹窗 -->
             <div v-if="showTopicDropdown" class="topic-dropdown">
               <div v-for="topic in topics" :key="topic.id" class="topic-item" @click="selectTopic(topic)">
-                {{ topic.name }}
+                {{ topic }}
               </div>
             </div>
           </div>
@@ -474,6 +583,7 @@ onMounted(() => {
             
             <!-- 帖子数据展示 -->
             <div class="forum-data">
+              <span v-for="classify in forum.sub_classify" :key="classify" class="forum-label" @click="forumSubClassifySearch(classify)">#{{ classify }}</span>
               <span v-for="label in forum.label" :key="label" class="forum-label" @click="forumLabelSearch(label)">#{{ label }}</span>
               <span class="forum-viewCount"  @click="goToPostDetail(forum.forum_id)">浏览量:{{ forum.page_views }}</span>
               <span class="forum-replyCount"  @click="goToPostDetail(forum.forum_id)">评论量:{{ forum.comment_count }}</span>
@@ -933,6 +1043,7 @@ onMounted(() => {
   border: 1px solid lightgray;
   border-radius: 5px;
   display: flex;
+  flex-direction: row;
   justify-content: space-between;
   align-items: center;
   padding: 0 15px;
@@ -945,7 +1056,8 @@ onMounted(() => {
 }
 
 .filter-right {
-  position: relative;
+  display: flex;
+  gap: 80px;
 }
 
 .filter-btn {

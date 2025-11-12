@@ -2,10 +2,12 @@
   import { reactive, onMounted, ref } from 'vue'
   import { ElMessage } from 'element-plus'
   import axios from 'axios'
+  import { useUserStore } from '@/stores/userStore'
   import qs from 'qs' 
   import router from '@/router'
 
   const loginAPI = '/api/login'
+  const userStore = useUserStore()
 
   // 传递用户信息
   const form = reactive({
@@ -31,22 +33,16 @@
     getCaptcha()
   })
 
-  const login = async (formData) => {
-    const response = await axios.post(loginAPI, qs.stringify(formData), {
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      }
-    })
-    return response.data
-  }
 
-  const JWT_TOKEN = ref('')
   const onSubmit = async() => {
     try {
-      const response = await login(form)
-      if (response.code == 1) {
-        JWT_TOKEN.value = response.data.data
-        console.log(JWT_TOKEN.value)
+      const response = await axios.post(loginAPI, qs.stringify(form),{
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      })
+      if (response.data.code == 1) {
+        userStore.setToken(response.data.data)
         gotoNavigation()
         ElMessage.success(response.data.msg)
       } else {
@@ -61,10 +57,7 @@
 
 const gotoNavigation = () => {
   router.push({
-    path: '/initialChats',
-    query: {
-        token: JWT_TOKEN.value
-    }
+    path: '/initialForum',
   })
 }
 

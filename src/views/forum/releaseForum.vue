@@ -1,7 +1,12 @@
 <script setup>
 import { reactive, ref, onMounted } from 'vue';
 import { ElMessage} from 'element-plus';
+import axios from 'axios';
+import { useUserStore } from '@/stores/userStore'
 
+// 获取用户存储实例
+const userStore = useUserStore()
+const JWT_TOKEN = userStore.token
 
 // 表单数据
 const formData = reactive({
@@ -31,7 +36,12 @@ const label = ref([
 const getLabelApi = '/api/getLabels';
 const getLabels = async () => {
   try {
-    const response = await axios.get(getLabelApi);
+    const response = await axios.get(getLabelApi, {
+      headers: {
+        'token': JWT_TOKEN,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+    });
     if (response.data.code === 1) {
       label.value = response.data.data;
     } else {
@@ -129,6 +139,7 @@ const releaseForum = async () => {
   try {
     await axios.post(releaseForumApi, formData, {
       headers: {
+        'token': JWT_TOKEN,
         'Content-Type': 'application/json'
       }
     })

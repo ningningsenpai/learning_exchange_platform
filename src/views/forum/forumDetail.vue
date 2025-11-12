@@ -1,8 +1,13 @@
 <script setup>
 import { reactive, onMounted, ref} from 'vue';
 import { ElMessage, ElMessageBox} from 'element-plus';
+import { useUserStore } from '@/stores/userStore'
 import axios from 'axios';
 import router from '@/router'
+
+// 获取用户存储实例
+const userStore = useUserStore()
+const JWT_TOKEN = userStore.token
 
 // 获取用户信息
 const userInfoApi = '/api/getUserInfo'
@@ -54,6 +59,10 @@ const getForumDetailApi = '/api/getPostInfoById'
 const getForumDetail = async () => {
   try {
     const response = await axios.get(getForumDetailApi, {
+      headers: {
+        'token': JWT_TOKEN,
+        'Content-Type': 'application/json'
+      },
       params: {
         post_id: forumId.value
       }
@@ -103,6 +112,10 @@ const getForumCommentsApi = '/api/getCommentsByPostId'
 const getForumComments = async () => {
   try {
     const response = await axios.get(getForumCommentsApi, {
+      headers: {
+        'token': JWT_TOKEN,
+        'Content-Type': 'application/json'
+      },
       params: {
         post_id: forumId.value
       }
@@ -121,6 +134,10 @@ const getCommentRepliesApi = '/api/getRepliesByCommentId'
 const getCommentReplies = async (comment) => {
   try {
     const response = await axios.get(getCommentRepliesApi, {
+      headers: {
+        'token': JWT_TOKEN,
+        'Content-Type': 'application/json'
+      },
       params: {
         comment_id: replyToParentCommentId.value
       }
@@ -216,6 +233,7 @@ const sendComment = async () => {
         content: commentContent.value
       }, {
         headers: {
+          'token': JWT_TOKEN,
           'Content-Type': 'application/x-www-form-urlencoded'
         }
       })
@@ -240,6 +258,7 @@ const sendComment = async () => {
             replay_user_name: replyToUser.value
           }, {
             headers: {
+              'token': JWT_TOKEN,
               'Content-Type': 'application/x-www-form-urlencoded'
             }
           })
@@ -315,6 +334,10 @@ const postCollectApi = '/api/getPostCollectStatus'
 const getPostLikeStatus = async () => {
   try {
     const response = await axios.get(postLikeApi, {
+      headers: {
+        'token': JWT_TOKEN,
+        'Content-Type': 'application/json'
+      },
       params: {
         post_id: forumId.value
       }
@@ -331,6 +354,10 @@ const getPostLikeStatus = async () => {
 const getPostCollectStatus = async () => {
   try {
     const response = await axios.get(postCollectApi, {
+      headers: {
+        'token': JWT_TOKEN,
+        'Content-Type': 'application/json'
+      },
       params: {
         post_id: forumId.value
       }
@@ -358,6 +385,7 @@ const userPostAction = async (api) => {
       post_id: forumId.value
     }, {
       headers: {
+        'token': JWT_TOKEN,
         'Content-Type': 'application/x-www-form-urlencoded'
       }
     })
@@ -371,6 +399,7 @@ const userDeleteAction = async (api) => {
       post_id: forumId.value
     }, {
       headers: {
+        'token': JWT_TOKEN,
         'Content-Type': 'application/x-www-form-urlencoded'
       }
     })
@@ -419,6 +448,7 @@ const followUser = async (userId) => {
       focus_user_id: userId
     }, {
       headers: {
+        'token': JWT_TOKEN,
         'Content-Type': 'application/x-www-form-urlencoded'
       }
     });
@@ -434,6 +464,7 @@ const unfollowUser = async (userId) => {
       focus_user_id: userId
     }, {
       headers: {
+        'token': JWT_TOKEN,
         'Content-Type': 'application/x-www-form-urlencoded'
       }
     });

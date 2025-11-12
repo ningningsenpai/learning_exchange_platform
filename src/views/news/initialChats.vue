@@ -2,6 +2,11 @@
 import { ref, reactive, computed, onMounted, nextTick, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import axios from 'axios'
+import { useUserStore } from '@/stores/userStore'
+
+// 获取用户存储实例
+const userStore = useUserStore()
+const JWT_TOKEN = userStore.token
 
 // 获取用户信息
 const userInfoApi = '/api/getUserInfo'
@@ -15,7 +20,13 @@ const userInfo = reactive({
 })
 const getUserInfo = async () => {
     try {
-        const response = await axios.get(userInfoApi)
+        const response = await axios.get(userInfoApi
+           ,{
+            headers: {
+                'token': JWT_TOKEN,
+                'Content-Type': 'application/json'
+            }
+        })
         if(response.data.code === 1) {
             Object.assign(userInfo, response.data.data)
         } else {
@@ -67,7 +78,8 @@ const isConnected = ref(false)
 const connectionStatus = ref('disconnected')
 const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 const wsConfig = reactive({
-  url: protocol + '//10.244.193.207:8080/websocket/chat', // WebSocket服务器地址
+  // url:'ws://10.244.119.90:8080/chat', // WebSocket服务器地址
+  url: 'ws://10.244.193.207:8080/websocket/chat',
   reconnectInterval: 3000, // 重连间隔(毫秒)
   maxReconnectAttempts: 5, // 最大重连次数
   reconnectAttempts: 0
@@ -110,15 +122,15 @@ const connectWebSocket = () => {
       }
     }
     // 连接关闭
-    ws.value.onclose = (event) => {
-      console.log('WebSocket连接关闭:', event.code, event.reason)
-      isConnected.value = false
-      connectionStatus.value = 'disconnected'
-      // 如果不是正常关闭，尝试重连
-      if (event.code !== 1000) {
-        handleReconnect()
-      }
-    }
+    // ws.value.onclose = (event) => {
+    //   console.log('WebSocket连接关闭:', event.code, event.reason)
+    //   isConnected.value = false
+    //   connectionStatus.value = 'disconnected'
+    //   // 如果不是正常关闭，尝试重连
+    //   if (event.code !== 1000) {
+    //     handleReconnect()
+    //   }
+    // }
     // 连接错误
     ws.value.onerror = (error) => {
       console.error('WebSocket连接错误:', error)
