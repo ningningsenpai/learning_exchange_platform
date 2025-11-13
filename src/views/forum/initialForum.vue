@@ -93,7 +93,7 @@ const getPopularTopic = async () => {
 
 
 // 筛选按钮状态
-const filterActive = ref('');
+const filterActive = ref('综合');
 function handleFilterClick(filterType) {
   filterActive.value = filterType;
   search();
@@ -131,12 +131,13 @@ function toggleTopicDropdown() {
   showSubClassifyDropdown.value = false
 }
 function selectTopic(topic) {
-  selectedTopic.value = topic.name
+  selectedTopic.value = topic
   showTopicDropdown.value = false
   search();
 }
 function removeTopic() {
   selectedTopic.value = ''
+  search();
 }
 function handleTopicClickOutside(event) {
   const topicSelector = event.target.closest('.topic-selector')
@@ -175,12 +176,13 @@ function toggleSubClassifyDropdown() {
   showTopicDropdown.value = false
 }
 function selectSubClassify(subClassify) {
-  selectedSubClassify.value = subClassify.name
+  selectedSubClassify.value = subClassify
   showSubClassifyDropdown.value = false
   search();
 }
 function removeSubClassify() {
   selectedSubClassify.value = ''
+  search();
 }
 function handleSubClassifyClickOutside(event) {
   const subClassifySelector = event.target.closest('.topic-selector')
@@ -198,70 +200,16 @@ window.addEventListener('click', (event) => {
 // 帖子标签点击搜索
 function forumLabelSearch(label) {
   selectedTopic.value = label
-  const selectedTopic = topics.value.find(topic => topic.name === label)
-  if (selectedTopic) {
-    selectedTopic.value = selectedTopic.name
-    showTopicDropdown.value = false
-    search();
-  }
-  selectedTopic.value = ''
+  search();
 }
 // 帖子子分类点击搜索
 function forumSubClassifySearch(subClassify) {
   selectedSubClassify.value = subClassify
-  const selectedSubClassify = postClassifies.value.find(classify => classify.name === subClassify)
-  if (selectedSubClassify) {
-    selectedSubClassify.value = selectedSubClassify.name
-    showSubClassifyDropdown.value = false
-    search();
-  }
-  selectedSubClassify.value = ''
+  search();
 }
 
 
 // 帖子数据获取(对象列表)
-const forumPost = reactive({
-  user_id: '1',
-  forum_id: '1',
-  title: '这是一个很有趣的帖子标题',
-  publish_date: '2024-06-01',
-  summary: '这是帖子内容的简要介绍',
-  content: '这是帖子内容的这是帖子内容的这是帖子内容的这是帖子内容的这是帖子内容的这是帖子内容的这是帖子内容的,这是帖子内容的这是帖子内容的这是帖子内容的,这是帖子内容的这是帖子内容的这是帖子内容的这是帖子内容的.',
-  author_name: '张三哈哈哈',
-  author_avatar: 'src/static/image.png',
-  page_views: 1234,
-  label: ['前端开发', 'Vue.js'],
-  cover_avatar: 'src/static/1.jpg',
-  type: '原创',
-  visible_range: '公开',
-  like_count: 456,
-  collect_count: 78,
-  comment_count: 2,
-  subject: '计算机',
-  sub_classify: '前端',
-  is_followed: false
-})
-const forumPost1 = reactive({
-  user_id: '1',
-  forum_id: '2',
-  title: '这是一个很有趣的帖子标题',
-  publish_date: '2024-06-01',
-  summary: '这是帖子内容的简要介绍',
-  content: '这是帖子内容的这是帖子内容的这是帖子内容的这是帖子内容的这是帖子内容的这是帖子内容的这是帖子内容的,这是帖子内容的这是帖子内容的这是帖子内容的,这是帖子内容的这是帖子内容的这是帖子内容的这是帖子内容的.',
-  author_name: '张三哈哈哈',
-  author_avatar: 'src/static/image.png',
-  page_views: 1234,
-  label: ['前端开发', 'Vue.js'],
-  cover_avatar: 'src/static/1.jpg',
-  type: '原创',
-  visible_range: '公开',
-  like_count: 456,
-  collect_count: 78,
-  comment_count: 2,
-  subject: '计算机',
-  sub_classify: '前端',
-  is_followed: true
-})
 const forumPosts = reactive({
   list: []
 })
@@ -361,7 +309,7 @@ const toggleFollow = (forum) => {
   }
 }
 // 关注用户
-const followUserApi = '/api/focusUser'
+const followUserApi = '/api/user/focusUser'
 const followUser = async (userId) => {
   try {
     await axios.post(followUserApi, {
@@ -377,7 +325,7 @@ const followUser = async (userId) => {
   }
 }
 // 取消关注用户
-const unfollowUserApi = '/api/cancelFocusUser'
+const unfollowUserApi = '/api/user/cancelFocusUser'
 const unfollowUser = async (userId) => {
   try {
     await axios.delete(unfollowUserApi, {
@@ -400,11 +348,11 @@ const incPageViewsByIdApi = '/api/incPageViewsById'
 const incPageViewsById = async (forumId) => {
   try {
     await axios.post(incPageViewsByIdApi, {
-      post_id: forumId
+      id: forumId
     }, {
       headers: {
         'token': JWT_TOKEN,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/x-www-form-urlencoded'
       }
     });
   } catch (error) {
@@ -519,9 +467,9 @@ onMounted(() => {
       <!-- 筛选区域 -->
       <div class="filter">
         <div class="filter-left">
-          <button class="filter-btn" :class="{'active': filterActive === 'all'}" @click="handleFilterClick('all')">综合</button>
-          <button class="filter-btn" :class="{'active': filterActive === 'hot'}" @click="handleFilterClick('hot')">热门</button>
-          <button class="filter-btn" :class="{'active': filterActive === 'new'}" @click="handleFilterClick('new')">最新</button>
+          <button class="filter-btn" :class="{'active': filterActive === '综合'}" @click="handleFilterClick('综合')">综合</button>
+          <button class="filter-btn" :class="{'active': filterActive === '热门'}" @click="handleFilterClick('热门')">热门</button>
+          <button class="filter-btn" :class="{'active': filterActive === '最新'}" @click="handleFilterClick('最新')">最新</button>
         </div>
         <div class="filter-right">
           <!-- 子分类选择区域 -->
@@ -565,35 +513,35 @@ onMounted(() => {
                 <p class="userInfo-name">{{ forum.author_name }}</p>
                 <p class="userInfo-stats">发帖 {{ forum.publish_count || 0 }} · 粉丝 {{ forum.follower_count || 0 }}</p>
               </div>
-              <button 
+              <!-- <button 
               class="userInfo-follow" 
               :class="{'followed': forum.is_followed}"
               @click="toggleFollow(forum)"
               >
                 <i class="follow-icon" :class="{'followed': forum.is_followed}"></i>
                 {{ forum.is_followed ? '已关注' : '关注' }}
-              </button>
+              </button> -->
             </div>
             
             <!-- 帖子标题和简介 -->
-            <div class="forum-content" @click="goToPostDetail(forum.forum_id)">
+            <div class="forum-content" @click="goToPostDetail(forum.id)">
               <h2 class="forum-title">{{ forum.title }}</h2>
               <p class="forum-summary">{{ forum.summary }}</p>
             </div>
             
             <!-- 帖子数据展示 -->
             <div class="forum-data">
-              <span v-for="classify in forum.sub_classify" :key="classify" class="forum-label" @click="forumSubClassifySearch(classify)">#{{ classify }}</span>
-              <span v-for="label in forum.label" :key="label" class="forum-label" @click="forumLabelSearch(label)">#{{ label }}</span>
-              <span class="forum-viewCount"  @click="goToPostDetail(forum.forum_id)">浏览量:{{ forum.page_views }}</span>
-              <span class="forum-replyCount"  @click="goToPostDetail(forum.forum_id)">评论量:{{ forum.comment_count }}</span>
-              <span class="forum-likeCount"  @click="goToPostDetail(forum.forum_id)">点赞量:{{ forum.like_count }}</span>
-              <span class="forum-collectCount"  @click="goToPostDetail(forum.forum_id)">收藏量:{{ forum.collect_count }}</span>
+              <span v-if="forum.sub_classify" class="forum-label" @click="forumSubClassifySearch(classify); selectSubClassify(forum.sub_classify)">#{{ forum.sub_classify }}</span>
+              <span v-if="forum.label" class="forum-label" @click="forumLabelSearch(label); selectTopic(forum.label)">#{{ forum.label }}</span>
+              <span class="forum-viewCount"  @click="goToPostDetail(forum.id)">浏览量:{{ forum.page_views }}</span>
+              <span class="forum-replyCount"  @click="goToPostDetail(forum.id)">评论量:{{ forum.comment_count }}</span>
+              <span class="forum-likeCount"  @click="goToPostDetail(forum.id)">点赞量:{{ forum.like_count }}</span>
+              <span class="forum-collectCount"  @click="goToPostDetail(forum.id)">收藏量:{{ forum.collect_count }}</span>
             </div>
           </div>
           
           <!-- 帖子封面图,右侧 -->
-          <div class="forum-coverAvatar" @click="goToPostDetail(forum.forum_id)">
+          <div class="forum-coverAvatar" @click="goToPostDetail(forum.id)">
             <img :src="forum.cover_avatar" alt="帖子封面" class="cover-avatar-img"/>
           </div>
         </div>

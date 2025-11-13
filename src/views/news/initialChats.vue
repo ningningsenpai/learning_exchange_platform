@@ -11,79 +11,45 @@ const JWT_TOKEN = userStore.token
 // 获取用户信息
 const userInfoApi = '/api/getUserInfo'
 const userInfo = reactive({
-    id: 0,
-    username: '',
-    avatar: '',
-    grade: '',
-    major: '',
-    summary: '',
+  id: 0,
+  username: '',
+  avatar: '',
+  grade: '',
+  major: '',
+  summary: '',
 })
 const getUserInfo = async () => {
-    try {
-        const response = await axios.get(userInfoApi
-           ,{
-            headers: {
-                'token': JWT_TOKEN,
-                'Content-Type': 'application/json'
-            }
-        })
-        if(response.data.code === 1) {
-            Object.assign(userInfo, response.data.data)
-        } else {
-            ElMessage.error(response.data.msg)
-        }
-    } catch (error) {
-        ElMessage.error("获取用户信息失败，请重试")
+  try {
+    const response = await axios.get(userInfoApi, {
+      headers: {
+        'token': JWT_TOKEN,
+        'Content-Type': 'application/json'
+      }
+    })
+    if(response.data.code === 1) {
+      Object.assign(userInfo, response.data.data)
+      // 获取用户信息后连接WebSocket
+      connectWebSocket()
+    } else {
+      ElMessage.error(response.data.msg)
     }
+  } catch (error) {
+    ElMessage.error("获取用户信息失败，请重试")
+  }
 }
 
-// 好友列表数据
-const chatData = reactive({
-  list: [
-    {
-      id: 1,
-      name: '张三',
-      avatar: 'src/static/image.png',
-      content:'消息内容',
-      sendTime:"2023-10-10 10:30",
-      isRead: false
-    },
-    {
-      id: 2,
-      name: '张三',
-      avatar: 'src/static/image.png',
-      content:'消息内容',
-      sendTime:"2023-10-10 10:30",
-      isRead: true
-    }
-  ]
-})
-
-const chatDatas = reactive({
-    List: [chatData.list[1], chatData.list[0]]
-})
-// 在线好友数据
-const onlineFriends = reactive({
-  list: []
-})
-// 判断是否在线
-const isOnline = (friendId) => {
-  const isOnline = onlineFriends.list.includes(friendId)
-  return isOnline
-}
-
-// WebSocket建立连接
+// WebSocket配置
 const ws = ref(null)
 const isConnected = ref(false)
 const connectionStatus = ref('disconnected')
 const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 const wsConfig = reactive({
-  // url:'ws://10.244.119.90:8080/chat', // WebSocket服务器地址
-  url: 'ws://10.244.193.207:8080/websocket/chat',
-  reconnectInterval: 3000, // 重连间隔(毫秒)
-  maxReconnectAttempts: 5, // 最大重连次数
+  url: `${protocol}//${window.location.host}/websocket/chat`,
+  reconnectInterval: 3000,
+  maxReconnectAttempts: 5,
   reconnectAttempts: 0
 })
+
 // 重连处理
 const handleReconnect = () => {
   if (wsConfig.reconnectAttempts < wsConfig.maxReconnectAttempts) {
@@ -97,139 +63,207 @@ const handleReconnect = () => {
     ElMessage.error('WebSocket连接失败，请检查服务器状态')
   }
 }
+
+// 连接WebSocket
 const connectWebSocket = () => {
   try {
     // 如果已有连接，先关闭
     if (ws.value && ws.value.readyState === WebSocket.OPEN) {
       ws.value.close()
-    }  
-    ws.value = new WebSocket(wsConfig.url)   
+    }
+
+    ws.value = new WebSocket(wsConfig.url)
+
     // 连接成功
     ws.value.onopen = () => {
       console.log('WebSocket连接成功')
       isConnected.value = true
       connectionStatus.value = 'connected'
       wsConfig.reconnectAttempts = 0
+      ElMessage.success('连接成功')
     }
-    
-    // 接收消息
+
+    // 接收消息 - 修复消息解析逻辑
     ws.value.onmessage = (event) => {
       try {
-        const message = JSON.parse(event.data.data)
-        handleWebSocketMessage(message)
+        console.log('收到原始消息:', event.data)
+        const data = JSON.parse(event.data)
+
+        if (data.code === 1 && data.data) {
+          handleWebSocketMessage(data.data)
+        } else {
+          console.log('非标准消息格式:', data)
+        }
       } catch (error) {
         console.error('消息解析错误:', error)
+        console.log('原始消息:', event.data)
       }
     }
+
     // 连接关闭
-    // ws.value.onclose = (event) => {
-    //   console.log('WebSocket连接关闭:', event.code, event.reason)
-    //   isConnected.value = false
-    //   connectionStatus.value = 'disconnected'
-    //   // 如果不是正常关闭，尝试重连
-    //   if (event.code !== 1000) {
-    //     handleReconnect()
-    //   }
-    // }
+    ws.value.onclose = (event) => {
+      console.log('WebSocket连接关闭:', event.code, event.reason)
+      isConnected.value = false
+      connectionStatus.value = 'disconnected'
+      ElMessage.warning('连接已断开')
+
+      // 如果不是正常关闭，尝试重连
+      if (event.code !== 1000) {
+        handleReconnect()
+      }
+    }
+
     // 连接错误
     ws.value.onerror = (error) => {
       console.error('WebSocket连接错误:', error)
       connectionStatus.value = 'error'
-    }   
+      ElMessage.error('连接错误')
+    }
+
   } catch (error) {
     console.error('WebSocket连接失败:', error)
     connectionStatus.value = 'error'
+    ElMessage.error('连接失败')
   }
 }
 
 // 处理WebSocket消息
-const handleWebSocketMessage = (message) => {
-  switch (message.type) {
+const handleWebSocketMessage = (messageData) => {
+  console.log('处理消息:', messageData)
+
+  switch (messageData.type) {
     case 'friend':
-      handleFriendMessage(message)
+      handleFriendMessage(messageData)
       break
     case 'online':
-      handleOnlineMessage(message)
+      handleOnlineMessage(messageData)
       break
     case 'message':
-      handleMessage(message)
+      handleRealtimeMessage(messageData)
       break
     default:
-      console.log('未知消息类型:', message.type)
+      console.log('未知消息类型:', messageData.type)
   }
 }
-const handleFriendMessage = (message) => {
-    chatDatas.List.push(message.list)
-}
-const handleOnlineMessage = (message) => {
-    onlineFriends.list = message.list
-}
-const handleMessage = (message) => {
-    const user = friendsDatas.list.find((item) => item.id === message.sender_id)
-    if (user) {
-        user.messages.push(message.message)
-    } else {
-        chatDatas.List.push({
-            id: message.sender_id,
-            name: message.sender_name,
-            avatar: message.sender_avatar,
-            content: message.message.content,
-            sendTime: message.message.time,
-            isRead: false
-        })
-        const tempUser = friendsDatas.list.find((item) => item.id === message.sender_id)
-        tempUser.messages.push(message.message)
-    }
+
+// 处理好友列表消息
+const handleFriendMessage = (messageData) => {
+  if (messageData.list && Array.isArray(messageData.list)) {
+    // 清空现有列表并添加新数据
+    chatDatas.List = messageData.list.map(friend => ({
+      ...friend,
+      messages: checkMessages(friend.id) // 获取历史消息
+    }))
+    console.log('更新好友列表:', chatDatas.List)
+  }
 }
 
-
-// 好友列表数据
-const friendsData = reactive({
-  list: [
-    {
-      id: 1,
-      name: '张三',
-      avatar: 'src/static/image.png',
-      messages: [
-        { id: 1, type: 'text', sender: 'friend', content: '你好！', time: '2023-10-10 10:30' },
-        { id: 2, type: 'text', sender: 'me', content: '你好，小明！', time: '2023-10-10 10:31' },
-        { id: 3, type: 'text', sender: 'friend', content: '最近怎么样？', time: '2023-10-10 10:32' },
-        { id: 4, type: 'text', sender: 'me', content: '还不错，你呢？', time: '2023-10-10 10:33' },
-        { id: 5, type: 'text', sender: 'friend', content: '我也挺好的，最近在学习Vue.js', time: '2023-10-10 10:35' },
-        { id: 6, type: 'text', sender: 'friend', content: '我也挺好的，最近在学习Vue.js', time: '2023-10-10 10:35' },
-        { id: 7, type: 'text', sender: 'friend', content: '我也挺好的，最近在学习Vue.js', time: '2023-10-10 10:35' },
-        { id: 8, type: 'image', sender: 'friend', imageUrl: 'src/static/image.png', time: '2023-10-10 10:35' },
-      ]
-    },
-    {
-      id: 2,
-      name: '张三',
-      avatar: 'src/static/image.png',
-      messages: [
-        { id: 1, type: 'text', sender: 'friend', content: '在吗？', time: '2023-10-10 15:20' },
-        { id: 2, type: 'text', sender: 'me', content: '在的，有什么事吗？', time: '2023-10-10 15:22' },
-        { id: 3, type: 'text', sender: 'friend', content: '想问一下作业的事情', time: '2023-10-10 15:23' }
-      ]
-    },
-  ]
-})
-const friendsDatas = reactive({
+// 处理在线状态消息
+const onlineFriends = reactive({
   list: []
 })
-const friendsDataApi = '/api/chat/open'
-const getFriendData = async (userId) => {
-  try {
-    const response = await axios.get(friendsDataApi, {
-      params: {
-        userId: userId
-      }
-    })
-    friendsDatas.list = response.data.data
-  } catch (error) {
-    console.error('获取聊天记录失败:', error)
+
+const handleOnlineMessage = (messageData) => {
+  if (messageData.list && Array.isArray(messageData.list)) {
+    onlineFriends.list = messageData.list
+    console.log('更新在线好友:', onlineFriends.list)
   }
 }
 
+// 判断是否在线
+const isOnline = (friendId) => {
+  return onlineFriends.list.includes(friendId)
+}
+
+// 处理实时消息
+const handleRealtimeMessage = (messageData) => {
+  console.log('处理实时消息:', messageData)
+
+  const fromUserId = messageData.sender_id
+  const messageContent = messageData.message?.content || messageData.content
+
+  // 查找或创建好友
+  let friend = chatDatas.List.find(item => item.id === fromUserId)
+  if (!friend) {
+    friend = {
+      id: fromUserId,
+      name: messageData.sender_name || `用户${fromUserId}`,
+      avatar: messageData.sender_avatar || '',
+      content: messageContent,
+      sendTime: new Date().toLocaleString(),
+      isRead: false,
+      messages: []
+    }
+    chatDatas.List.unshift(friend)
+  }
+
+  // 添加消息
+  const newMessage = {
+    id: Date.now(),
+    sender: 'friend',
+    type: messageContent?.startsWith('http') ? 'image' : 'text',
+    content: messageContent,
+    time: new Date().toLocaleString()
+  }
+
+  if (!friend.messages) {
+    friend.messages = []
+  }
+  friend.messages.push(newMessage)
+
+  // 更新最后一条消息内容
+  friend.content = messageContent
+  friend.sendTime = new Date().toLocaleString()
+  friend.isRead = activeFriend.value?.id === fromUserId
+
+  // 如果当前正在与发送者聊天，滚动到底部
+  if (activeFriend.value?.id === fromUserId) {
+    scrollToBottom()
+  } else {
+    // 显示通知
+    ElMessage.info(`新消息来自 ${friend.name}`)
+  }
+
+  console.log('消息已添加到聊天记录')
+}
+
+// 好友列表数据
+const chatDatas = reactive({
+  List: []
+})
+
+// 获取好友聊天记录
+const friendsDataApi = '/api/chat/open'
+const getFriendData = async (friendId) => {
+  try {
+    const response = await axios.get(friendsDataApi, {
+      params: { friendId: friendId },
+      headers: {
+        'token': JWT_TOKEN,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (response.data.code === 1 && response.data.data) {
+      return response.data.data.messages || []
+    } else {
+      console.error('获取聊天记录失败:', response.data.msg)
+      return []
+    }
+  } catch (error) {
+    console.error('获取聊天记录失败:', error)
+    return []
+  }
+}
+
+// 匹配好友消息
+const checkMessages = async (friendId) => {
+  const messages = await getFriendData(friendId)
+  return messages.map(msg => ({
+    ...msg,
+    time: new Date(msg.time).toLocaleString()
+  }))
+}
 
 // 响应式数据
 const activeFriend = ref(null)
@@ -249,9 +283,10 @@ const scrollToBottom = () => {
 
 // 分组展开状态
 const groupExpanded = ref({
-  1: false, 
-  2: true  
+  1: false,
+  2: true
 })
+
 // 分组数据
 const friendGroups = reactive([
   {
@@ -262,7 +297,7 @@ const friendGroups = reactive([
   {
     id: 2,
     name: '默认分组',
-    count: chatDatas.List.length,
+    count: computed(() => chatDatas.List.length),
   },
 ])
 
@@ -272,62 +307,93 @@ const toggleGroup = (groupId) => {
 }
 
 // 选择好友
-const selectFriend = (friend) => {
+const selectFriend = async (friend) => {
   friend.isRead = true
   activeFriend.value = friend
+
+  // 确保有消息数组
+  if (!friend.messages) {
+    friend.messages = await checkMessages(friend.id)
+  }
+
   scrollToBottom()
 }
 
 // 搜索好友
-const searchFriends = () => {
-  filteredFriends.value = friendsDatas.list.filter(friend => 
-    friend.name.toLowerCase().includes(searchText.value.toLowerCase())
+const filteredFriends = computed(() => {
+  if (!searchText.value) return chatDatas.List
+  return chatDatas.List.filter(friend =>
+      friend.name.toLowerCase().includes(searchText.value.toLowerCase())
   )
-}
+})
 
-// 匹配好友消息
-const checkMessages = (friendId) => {
-  getFriendData(userInfo.id)
-  const friend = friendsDatas.list.find((item) => item.id === friendId)
-  if (friend) {
-    return friend.messages
-  } else {
-    return []
-  }
-}
-
-// 发送消息文字和图片消息（webSocket使用）
+// 发送消息到WebSocket
 const sendMessageToWebSocket = (message) => {
   if (ws.value && ws.value.readyState === WebSocket.OPEN) {
-    ws.value.send(JSON.stringify(message))
+    // 修复消息格式，确保toUserId是数字
+    const messageData = {
+      toUserId: parseInt(activeFriend.value.id), // 确保是数字
+      message: message
+    }
+    console.log('发送消息:', messageData)
+    ws.value.send(JSON.stringify(messageData))
+    return true
   } else {
     console.error('WebSocket 连接未打开')
+    ElMessage.error('连接未就绪，请检查网络')
+    return false
   }
 }
+
 // 发送文字消息
 const sendTextMessage = () => {
-  const message = {
-    id: activeFriend.value.id,
-    message: newMessage.value,
+  if (!newMessage.value.trim()) return
+
+  const sent = sendMessageToWebSocket(newMessage.value)
+  if (sent) {
+    // 前端立即显示自己发送的消息
+    const message = {
+      id: Date.now(),
+      sender: 'me',
+      type: 'text',
+      content: newMessage.value,
+      time: new Date().toLocaleString()
+    }
+
+    if (activeFriend.value) {
+      if (!activeFriend.value.messages) {
+        activeFriend.value.messages = []
+      }
+      activeFriend.value.messages.push(message)
+      activeFriend.value.content = newMessage.value
+      activeFriend.value.sendTime = new Date().toLocaleString()
+    }
+
+    newMessage.value = ''
+    scrollToBottom()
   }
-  sendMessageToWebSocket(message)
-  newMessage.value = ''
 }
-// 上传图片
+
+// 图片上传相关
 const selectedFile = ref(null)
 const imagePreviewUrl = ref('')
-function handleImageUpload(event) {
+
+const handleImageUpload = (event) => {
   const file = event.target.files[0]
   if (!file) return
+
   if (!file.type.startsWith('image/')) {
     ElMessage.error('请选择图片文件')
     return
   }
+
   if (file.size > 5 * 1024 * 1024) {
     ElMessage.error('图片大小不能超过5MB')
     return
-  } 
+  }
+
   selectedFile.value = file
+
   // 创建预览URL
   const reader = new FileReader()
   reader.onload = (e) => {
@@ -336,17 +402,15 @@ function handleImageUpload(event) {
   reader.readAsDataURL(file)
 }
 
-// 清除已选择的图片
 const clearSelectedImage = () => {
   selectedFile.value = null
   imagePreviewUrl.value = ''
-  // 重置文件输入框
   const fileInput = document.querySelector('.image-upload-input')
   if (fileInput) {
     fileInput.value = ''
   }
 }
-// 格式化文件大小显示
+
 const formatFileSize = (bytes) => {
   if (!bytes || bytes === 0) return '0 B'
   const k = 1024
@@ -356,70 +420,82 @@ const formatFileSize = (bytes) => {
 }
 
 // 发送图片消息
-const sendImageMessage = () => {
-  const message = {
-    id: activeFriend.value.id,
-    message: selectedFile.value,
-  }
-  sendMessageToWebSocket(message)
-  selectedFile.value = null
-  imagePreviewUrl.value = ''
-}
-// 发送信息(前端渲染展示使用)
-const sendMessage = () => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  const hours = String(now.getHours()).padStart(2, '0');
-  const minutes = String(now.getMinutes()).padStart(2, '0');
-  if (newMessage.value !== '' && activeFriend.value && !selectedFile.value) {
-    const message = {
-      id: 0,
-      sender: 'me',
-      type: 'text',
-      content: newMessage.value,
-      time: `${year}-${month}-${day} ${hours}:${minutes}`
+const sendImageMessage = async () => {
+  if (!selectedFile.value) return
+
+  try {
+    const formData = new FormData()
+    formData.append('file', selectedFile.value)
+    formData.append('toUserId', activeFriend.value.id)
+
+    const response = await axios.post('/api/file/uploadImageMessage', formData, {
+      headers: {
+        'token': JWT_TOKEN,
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+
+    if (response.data.code === 1) {
+      const imageUrl = response.data.data
+      const sent = sendMessageToWebSocket(imageUrl)
+
+      if (sent) {
+        // 前端立即显示图片消息
+        const message = {
+          id: Date.now(),
+          sender: 'me',
+          type: 'image',
+          imageUrl: imageUrl,
+          time: new Date().toLocaleString()
+        }
+
+        if (activeFriend.value) {
+          if (!activeFriend.value.messages) {
+            activeFriend.value.messages = []
+          }
+          activeFriend.value.messages.push(message)
+          activeFriend.value.content = '[图片]'
+          activeFriend.value.sendTime = new Date().toLocaleString()
+        }
+
+        clearSelectedImage()
+        scrollToBottom()
+      }
+    } else {
+      ElMessage.error('图片上传失败: ' + response.data.msg)
     }
-    const friend = friendsDatas.list.find((item) => item.id === activeFriend.value.id)
-    friend.messages.push(message)
-    scrollToBottom()
-  }
-  if(selectedFile.value && activeFriend.value && newMessage.value === '') {
-    const message = {
-      id: 0,
-      sender: 'me',
-      type: 'image',
-      imageUrl: imagePreviewUrl,
-      time: `${year}-${month}-${day} ${hours}:${minutes}`
-    }
-    const friend = friendsDatas.list.find((item) => item.id === activeFriend.value.id)
-    friend.messages.push(message)
-    scrollToBottom()
+  } catch (error) {
+    console.error('图片上传失败:', error)
+    ElMessage.error('图片上传失败')
   }
 }
-// 判断发送消息的类型
+
+// 处理消息发送
 const handleMessageType = () => {
   if (selectedFile.value) {
-    sendMessage()
     sendImageMessage()
-  } else {
-    sendMessage()
+  } else if (newMessage.value.trim()) {
     sendTextMessage()
   }
-} 
+}
+
+// 处理回车键发送
+const handleKeydown = (event) => {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault()
+    handleMessageType()
+  }
+}
 
 // 图片放大功能
 const enlargedImage = ref(null)
 const showImageModal = ref(false)
 
-// 打开图片放大模态框
 const openImageModal = (imageUrl) => {
   enlargedImage.value = imageUrl
   showImageModal.value = true
 }
 
-// 关闭图片放大模态框
 const closeImageModal = () => {
   showImageModal.value = false
   enlargedImage.value = null
@@ -430,11 +506,9 @@ watch(() => activeFriend.value?.id, () => {
   scrollToBottom()
 })
 
-// 监听当前好友的消息数组变化
 watch(() => {
-  if (activeFriend.value) {
-    const friend = friendsDatas.list.find(item => item.id === activeFriend.value.id)
-    return friend ? friend.messages.length : 0
+  if (activeFriend.value && activeFriend.value.messages) {
+    return activeFriend.value.messages.length
   }
   return 0
 }, () => {
@@ -443,14 +517,11 @@ watch(() => {
 
 onMounted(() => {
   getUserInfo()
-  if (activeFriend.value) {
-    scrollToBottom()
-  }
-  connectWebSocket()
 })
 </script>
 
 <template>
+  <!-- 模板部分保持不变，只修改了部分逻辑 -->
   <div class="chat-container">
     <!-- 左侧边栏 -->
     <div class="sidebar">
@@ -461,25 +532,26 @@ onMounted(() => {
         </div>
         <div class="user-details">
           <div class="user-name">{{ userInfo.username }}</div>
-          <div class="user-status">在线</div>
+          <div class="user-status" :class="connectionStatus">
+            {{ connectionStatus === 'connected' ? '在线' : '离线' }}
+          </div>
         </div>
       </div>
-      
+
       <!-- 搜索框 -->
       <div class="search-box">
         <div class="search-container">
-          <input 
-            type="text" 
-            placeholder="搜索联系人、群聊" 
-            v-model="searchText"
-            @keyup.enter="searchFriends"
+          <input
+              type="text"
+              placeholder="搜索联系人、群聊"
+              v-model="searchText"
           >
-          <button class="search-btn" @click="searchFriends">
+          <button class="search-btn">
             <i class="fas fa-search"></i>
           </button>
         </div>
       </div>
-      
+
       <!-- 好友列表 -->
       <div class="friends-container">
         <!-- 分组列表 -->
@@ -493,12 +565,12 @@ onMounted(() => {
           </div>
           <div class="group-content" v-show="groupExpanded[group.id]">
             <ul class="friend-list">
-              <li 
-                class="friend-item" 
-                v-for="friend in chatDatas.List" 
-                :key="friend.id"
-                @click="selectFriend(friend)"
-                :class="{ active: activeFriend && activeFriend.id === friend.id }"
+              <li
+                  class="friend-item"
+                  v-for="friend in filteredFriends"
+                  :key="friend.id"
+                  @click="selectFriend(friend)"
+                  :class="{ active: activeFriend && activeFriend.id === friend.id }"
               >
                 <div class="friend-avatar" :class="isOnline(friend.id) ? 'online' : 'offline'">
                   <img :src="friend.avatar" alt="" class="friend-avatar-image">
@@ -506,7 +578,7 @@ onMounted(() => {
                 <div class="friend-info">
                   <div class="friend-name">{{ friend.name }}</div>
                   <div class="friend-status">
-                     {{ friend.content }}
+                    {{ friend.content }}
                   </div>
                 </div>
                 <div class="friend-indicator" v-if="!friend.isRead"></div>
@@ -516,7 +588,7 @@ onMounted(() => {
         </div>
       </div>
     </div>
-    
+
     <!-- 右侧聊天区域 -->
     <div class="chat-area">
       <!-- 聊天头部 -->
@@ -533,60 +605,60 @@ onMounted(() => {
           </div>
         </div>
       </div>
-      
-     <!-- 消息区域 -->
+
+      <!-- 消息区域 -->
       <div class="chat-messages" v-if="activeFriend" ref="messagesContainer">
-        <div 
-          class="message" 
-          :class="message.sender === 'me' ? 'sent' : 'received'"
-          v-for="message in checkMessages(activeFriend.id)" 
-          :key="message.id"
+        <div
+            class="message"
+            :class="message.sender === 'me' ? 'sent' : 'received'"
+            v-for="message in activeFriend.messages"
+            :key="message.id"
         >
           <!-- 头像区域 -->
           <div class="message-avatar">
             <!-- 自己发送的消息显示用户头像 -->
             <div v-if="message.sender === 'me'" class="avatar-content">
-              <img 
-                v-if="userInfo.avatar" 
-                :src="userInfo.avatar" 
-                alt="我的头像" 
-                class="avatar-image"
+              <img
+                  v-if="userInfo.avatar"
+                  :src="userInfo.avatar"
+                  alt="我的头像"
+                  class="avatar-image"
               >
               <div v-else class="avatar-fallback">
                 {{ userInfo.username ? userInfo.username.charAt(0) : '我' }}
               </div>
             </div>
-            
+
             <!-- 好友发送的消息显示好友头像 -->
             <div v-else class="avatar-content">
-              <img 
-                v-if="activeFriend.avatar" 
-                :src="activeFriend.avatar" 
-                :alt="activeFriend.name + '的头像'" 
-                class="avatar-image"
+              <img
+                  v-if="activeFriend.avatar"
+                  :src="activeFriend.avatar"
+                  :alt="activeFriend.name + '的头像'"
+                  class="avatar-image"
               >
               <div v-else class="avatar-fallback">
                 {{ activeFriend.name ? activeFriend.name.charAt(0) : '友' }}
               </div>
             </div>
           </div>
-          
+
           <!-- 消息内容区域 -->
           <div class="message-content">
-            <div class="message-text">{{ message.content }}</div>
-            <div v-if="message.imageUrl" class="message-image">
-              <img 
-                :src="message.imageUrl" 
-                alt="" 
-                class="image-content"
-                @click="openImageModal(message.imageUrl)"
+            <div v-if="message.type === 'text'" class="message-text">{{ message.content }}</div>
+            <div v-if="message.type === 'image'" class="message-image">
+              <img
+                  :src="message.imageUrl || message.content"
+                  alt=""
+                  class="image-content"
+                  @click="openImageModal(message.imageUrl || message.content)"
               >
             </div>
             <div class="message-time">{{ message.time }}</div>
           </div>
         </div>
       </div>
-      
+
       <!-- 无聊天时的提示 -->
       <div class="no-chat" v-else>
         <div class="no-chat-content">
@@ -597,7 +669,7 @@ onMounted(() => {
           <div class="no-chat-hint">与好友分享学习心得和生活点滴</div>
         </div>
       </div>
-      
+
       <!-- 输入区域 -->
       <div class="chat-input-area" v-if="activeFriend">
         <!-- 图片预览区域 -->
@@ -605,7 +677,7 @@ onMounted(() => {
           <div class="preview-container">
             <img :src="imagePreviewUrl" alt="图片预览" class="preview-image">
             <div class="preview-info">
-               <span class="file-name">{{ selectedFile?.name }}</span>
+              <span class="file-name">{{ selectedFile?.name }}</span>
               <span class="file-size">{{ formatFileSize(selectedFile?.size) }}</span>
             </div>
             <button class="preview-remove" @click="clearSelectedImage">
@@ -613,22 +685,22 @@ onMounted(() => {
             </button>
           </div>
         </div>
-        
-        <textarea 
-          class="chat-input" 
-          placeholder="输入消息..." 
-          v-model="newMessage"
-          @keydown.enter.prevent="handleMessageType"
-          rows="3"
+
+        <textarea
+            class="chat-input"
+            placeholder="输入消息..."
+            v-model="newMessage"
+            @keydown="handleKeydown"
+            rows="3"
         ></textarea>
         <div class="action-buttons">
           <label class="image-upload-button">
-            <input 
-              type="file" 
-              accept="image/*" 
-              @change="handleImageUpload"
-              class="image-upload-input"
-              hidden
+            <input
+                type="file"
+                accept="image/*"
+                @change="handleImageUpload"
+                class="image-upload-input"
+                hidden
             >
             <i class="fas fa-image"></i>
             {{ imagePreviewUrl ? '更换图片' : '上传图片' }}
@@ -652,6 +724,7 @@ onMounted(() => {
     </div>
   </div>
 </template>
+
 
 <style scoped>
 .chat-container {

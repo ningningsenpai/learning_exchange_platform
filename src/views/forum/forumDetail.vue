@@ -12,16 +12,21 @@ const JWT_TOKEN = userStore.token
 // 获取用户信息
 const userInfoApi = '/api/getUserInfo'
 const userInfo = reactive({
-    id: 1,
-    username: '张三',
-    avatar: 'src/static/image.png',
-    grade: '大一',
-    major: '计算机科学与技术',
-    summary: '这个人很懒，什么都没有留下。',
+    id: 0,
+    username: '',
+    avatar: '',
+    grade: '',
+    major: '',
+    summary: '',
 })
 const getUserInfo = async () => {
     try {
-        const response = await axios.get(userInfoApi)
+        const response = await axios.get(userInfoApi, {
+            headers: {
+                'token': JWT_TOKEN,
+                'Content-Type': 'application/x-www-form-urlencoded'
+            }
+        })
         if(response.data.code === 1) {
             Object.assign(userInfo, response.data.data)
         } else {
@@ -35,25 +40,24 @@ const getUserInfo = async () => {
 // 获取帖子详情
 const forumId = ref(0)
 const forumPost = reactive({
-  user_id: 1,
-  forum_id: 1,
-  title: '这是一个很有趣的帖子标题',
-  publish_date: '2024-06-01',
-  summary: '这是帖子内容的简要介绍',
-  content: '这是帖子内容的这是帖子内容的这是帖子内容的这是帖子内容的这是帖子内容的这是帖子内容的这是帖子内容的,这是帖子内容的这是帖子内容的这是帖子内容的,这是帖子内容的这是帖子内容的这是帖子内容的这是帖子内容的.',
-  author_name: '张三哈哈哈',
-  author_avatar: 'src/static/image.png',
-  page_views: 1234,
-  label: ['前端开发', 'Vue.js'],
-  cover_avatar: 'src/static/1.jpg',
-  type: '原创',
-  visible_range: '公开',
-  like_count: 456,
-  collect_count: 78,
-  comment_count: 2,
-  subject: '计算机',
-  sub_classify: '前端',
-  is_followed: false
+  id: 0,
+  user_id: 0,
+  title: '',
+  publish_date: '',
+  summary: '',
+  content: '',
+  author_name: '',
+  author_avatar: '',
+  page_views: 0,
+  label: '',
+  cover_avatar: 's',
+  type: '',
+  visible_range: '',
+  like_count: 0,
+  collect_count: 0,
+  comment_count: 0,
+  subject: '',
+  sub_classify: '',
 })
 const getForumDetailApi = '/api/getPostInfoById'
 const getForumDetail = async () => {
@@ -61,7 +65,7 @@ const getForumDetail = async () => {
     const response = await axios.get(getForumDetailApi, {
       headers: {
         'token': JWT_TOKEN,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/x-www-form-urlencoded'
       },
       params: {
         post_id: forumId.value
@@ -75,6 +79,10 @@ const getForumDetail = async () => {
   } catch (error) {
     ElMessage.error('获取帖子详情失败')
   }
+    // 检查用户是否关注了作者
+    checkFocusStatus(forumPost.user_id)
+    // getPostLikeStatus()
+    // getPostCollectStatus()
 }
 
 
@@ -114,12 +122,13 @@ const getForumComments = async () => {
     const response = await axios.get(getForumCommentsApi, {
       headers: {
         'token': JWT_TOKEN,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/x-www-form-urlencoded'
       },
       params: {
         post_id: forumId.value
       }
     })
+    console.log(response.data)
     if(response.data.code == 1) {
       comments.List = response.data.data
     } else {
@@ -136,7 +145,7 @@ const getCommentReplies = async (comment) => {
     const response = await axios.get(getCommentRepliesApi, {
       headers: {
         'token': JWT_TOKEN,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/x-www-form-urlencoded'
       },
       params: {
         comment_id: replyToParentCommentId.value
@@ -183,9 +192,9 @@ const getCommentReplies = async (comment) => {
 //       parentComment.replies.push({
 //         id: parentComment.replies.length + 1,
 //         comment_id: replyToParentCommentId.value,
-//         replay_type: 0,
-//         replay_comment_id: 0,
-//         replay_user_name: null,
+//         reply_type: 0,
+//         reply_comment_id: 0,
+//         reply_user_name: null,
 //         content: pureContent,
 //         user_id: userInfo.id,
 //         user_avatar: userInfo.avatar,
@@ -201,9 +210,9 @@ const getCommentReplies = async (comment) => {
 //       parentComment.replies.push({
 //         id: parentComment.replies.length + 1,
 //         comment_id: replyToParentCommentId.value,
-//         replay_type: 1,
-//         replay_comment_id: replyToCommentId.value,
-//         replay_user_name: replyToUser.value,
+//         reply_type: 1,
+//         reply_comment_id: replyToCommentId.value,
+//         reply_user_name: replyToUser.value,
 //         content: pureContent,
 //         user_id: userInfo.id,
 //         user_avatar: userInfo.avatar,
@@ -223,7 +232,6 @@ const sendComment = async () => {
     ElMessage.warning('请输入评论内容')
     return
   }
-  console.log(commentContent.value)
   // updateCommentFirst()
   if(replyToParentCommentId.value == 0) {
     try {
@@ -251,11 +259,11 @@ const sendComment = async () => {
           const pureContent = commentContent.value.replace(`回复${replyToUser.value}：`, '');
           const response = await axios.post(sendCommentApi, {
             comment_type: 'reply',
-            replay_type: replyToCommentId.value == 0 ? 'comment' : 'reply',
+            reply_type: replyToCommentId.value == 0 ? 'comment' : 'reply',
             content: pureContent,
             comment_id: replyToParentCommentId.value,
-            replay_comment_id: replyToCommentId.value,
-            replay_user_name: replyToUser.value
+            reply_comment_id: replyToCommentId.value == 0 ? replyToParentCommentId.value : replyToCommentId.value,
+            reply_user_name: replyToUser.value
           }, {
             headers: {
               'token': JWT_TOKEN,
@@ -264,7 +272,8 @@ const sendComment = async () => {
           })
           if (response.data.code === 1) {
             ElMessage.success('评论成功')
-            await getCommentReplies()
+            const parentComment = comments.List.find(comment => comment.id === replyToParentCommentId.value)
+            await getCommentReplies(parentComment)
           } else {
             ElMessage.error(response.data.msg)
           }
@@ -336,7 +345,7 @@ const getPostLikeStatus = async () => {
     const response = await axios.get(postLikeApi, {
       headers: {
         'token': JWT_TOKEN,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/x-www-form-urlencoded'
       },
       params: {
         post_id: forumId.value
@@ -356,7 +365,7 @@ const getPostCollectStatus = async () => {
     const response = await axios.get(postCollectApi, {
       headers: {
         'token': JWT_TOKEN,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/x-www-form-urlencoded'
       },
       params: {
         post_id: forumId.value
@@ -395,7 +404,7 @@ const userPostAction = async (api) => {
 }
 const userDeleteAction = async (api) => {
   try {
-    await axios.delete(api, {
+    await axios.post(api, {
       post_id: forumId.value
     }, {
       headers: {
@@ -432,16 +441,40 @@ const handleCollect = () => {
 }
 
 // 关注功能
+const isFollowed = ref(false)
+const isFollowUserApi = '/api/checkFocusStatus'
+const checkFocusStatus = async (userId) => {
+  try {
+    const response = await axios.get(isFollowUserApi, {
+      headers: {
+        'token': JWT_TOKEN,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      params: {
+        check_user_id: userId
+      }
+    })
+    if(response.data.code == 1) {
+      isFollowed.value = response.data.data
+    } else {
+      ElMessage.error(response.data.msg)
+    }
+  } catch (error) {
+    ElMessage.error('检查关注状态失败')
+  }
+}
+
+
 const handleFollow = () => {
-  forumPost.is_followed = !forumPost.is_followed
-  if (forumPost.is_followed) {
-    followUser(forumPost.user_id)
-  } else {
+  console.log(forumPost.user_id, isFollowed.value)
+  if (isFollowed.value) {
     unfollowUser(forumPost.user_id)
+  } else {
+    followUser(forumPost.user_id)
   }
 }
 // 关注用户
-const followUserApi = '/api/focusUser'
+const followUserApi = '/api/user/focusUser'
 const followUser = async (userId) => {
   try {
     await axios.post(followUserApi, {
@@ -455,12 +488,13 @@ const followUser = async (userId) => {
   } catch (error) {
     ElMessage.error('关注用户失败');
   }
+  checkFocusStatus(userId)
 }
 // 取消关注用户
-const unfollowUserApi = '/api/cancelFocusUser'
+const unfollowUserApi = '/api/user/cancelFocusUser'
 const unfollowUser = async (userId) => {
   try {
-    await axios.delete(unfollowUserApi, {
+    await axios.post(unfollowUserApi, {
       focus_user_id: userId
     }, {
       headers: {
@@ -471,6 +505,7 @@ const unfollowUser = async (userId) => {
   } catch (error) {
     ElMessage.error('取消关注用户失败');
   }
+  checkFocusStatus(userId)
 }
 
 // 跳转用户详情页
@@ -489,8 +524,6 @@ onMounted(() => {
   getUserInfo()
   getForumDetail()
   getForumComments()
-  getPostLikeStatus()
-  getPostCollectStatus()
 })
 </script>
 
@@ -510,7 +543,8 @@ onMounted(() => {
       </div>
       <!-- 标签 -->
       <div class="forum-label">
-        <span v-for="(item, index) in forumPost.label" :key="index" class="forum-label-item">{{item}}</span>
+        <span v-if="forumPost.sub_classify" class="forum-label-item">#{{forumPost.sub_classify}}</span>
+        <span v-if="forumPost.label" class="forum-label-item">#{{forumPost.label}}</span>
       </div>
       <!-- 简介 -->
       <div class="forum-summary">
@@ -529,10 +563,10 @@ onMounted(() => {
         <span class="author-name" @click="goToPersonHomePage(forumPost.user_id)">{{forumPost.author_name}}</span>
         <button 
           class="follow-button" 
-          :class="{ 'followed': forumPost.is_followed }"
+          :class="{ 'followed': isFollowed }"
           @click="handleFollow"
         >
-          {{ forumPost.is_followed ? '已关注' : '关注' }}
+          {{ isFollowed ? '已关注' : '关注' }}
         </button>
       </div>
       <div class="forum-actions">
@@ -635,11 +669,11 @@ onMounted(() => {
             </div>
 
             <!-- 回复列表 -->
-            <div class="replies-section" v-if="comment.replies && comment.replies.length > 0">
+            <div class="replies-section">
               <!-- 展开/收起按钮 -->
               <div class="replies-toggle" @click="toggleReplies(comment);">
                 <span class="toggle-text">
-                  {{ expandedReplies[comment.id] ? '收起' : '展开' }} {{ comment.reply_count }} 条回复
+                  {{ expandedReplies[comment.id] ? '收起' : '展开' }}回复内容
                 </span>
                 <svg 
                   class="toggle-icon" 
@@ -664,8 +698,8 @@ onMounted(() => {
                   <img :src="reply.user_avatar" alt="用户头像" class="reply-avatar"/>
                   <div class="reply-content">
                     <div class="reply-header">
-                      <span class="reply-user" v-if="reply.replay_comment_id == 0">{{ reply.user_name }}</span>
-                      <span class="reply-user" v-else>{{ reply.user_name }} 回复 {{ reply.replay_user_name }}</span>
+                      <span class="reply-user" v-if="reply.reply_comment_id == 0">{{ reply.user_name }}</span>
+                      <span class="reply-user" v-else>{{ reply.user_name }} 回复 {{ reply.reply_user_name }}</span>
                       <span class="reply-time">{{ reply.create_time }}</span>
                     </div>
                     <p class="reply-text">{{ reply.content }}</p>
