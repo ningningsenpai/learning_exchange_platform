@@ -11,7 +11,8 @@ const JWT_TOKEN = userStore.token
 // 表单数据
 const formData = reactive({
   title: '',
-  label: [],
+  label: '',
+  classify: '',
   summary: '',
   content: '',
   cover_avatar: null,
@@ -19,21 +20,12 @@ const formData = reactive({
   visible_range: 0, // 0:公开, 1:粉丝可见, 2:好友可见, 3:私人
 });
 
-// 话题选择相n
+// 话题获取
 const labelBubbleVisible = ref(false);
 const label = ref([
-  { id: 1, name: '技术讨论' },
-  { id: 2, name: '学习心得' },
-  { id: 3, name: '资源共享' },
-  { id: 4, name: '问题求助' },
-  { id: 5, name: '经验分享' },
-  { id: 6, name: '课程推荐' },
-  { id: 7, name: '工具分享' },
-  { id: 8, name: '职业发展' }
+  
 ]);
-
-// 获取话题列表
-const getLabelApi = '/api/getLabels';
+const getLabelApi = '/api/getPostLabels';
 const getLabels = async () => {
   try {
     const response = await axios.get(getLabelApi, {
@@ -43,12 +35,33 @@ const getLabels = async () => {
       }
     });
     if (response.data.code === 1) {
-      label.value = response.data.data;
+      topics.value = response.data.data;
     } else {
       ElMessage.error(response.data.msg);
     }
   } catch (error) {
     ElMessage.error('获取话题列表失败，请重试');
+  }
+};
+// 子分类获取
+const postClassifies = ref([
+
+])
+const getPostClassifies = async () => {
+  try {
+    const response = await axios.get(postClassifiesApi, {
+      headers: {
+        'token': JWT_TOKEN,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+    });
+    if (response.data.code === 1) {
+      postClassifies.value = response.data.data;
+    } else {
+      ElMessage.error(response.data.msg);
+    }
+  } catch (error) {
+    ElMessage.error('获取帖子分类失败，请重试');
   }
 };
 

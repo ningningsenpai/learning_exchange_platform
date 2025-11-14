@@ -39,12 +39,12 @@ const getUserInfo = async () => {
 }
 
 // WebSocket配置
-const ws = ref(null)
 const isConnected = ref(false)
 const connectionStatus = ref('disconnected')
 const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 const wsConfig = reactive({
-  url: `${protocol}//${window.location.host}/websocket/chat`,
+  url: `ws://10.244.193.207:8080/websocket/chat`,
+  // url: `ws://localhost:8080/websocket/chat`,
   reconnectInterval: 3000,
   maxReconnectAttempts: 5,
   reconnectAttempts: 0
@@ -64,18 +64,19 @@ const handleReconnect = () => {
   }
 }
 
+const ws = null;
 // 连接WebSocket
 const connectWebSocket = () => {
+  ws = new WebSocket(wsConfig.url)
   try {
     // 如果已有连接，先关闭
-    if (ws.value && ws.value.readyState === WebSocket.OPEN) {
-      ws.value.close()
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.close()
     }
 
-    ws.value = new WebSocket(wsConfig.url)
 
     // 连接成功
-    ws.value.onopen = () => {
+    ws.onopen = () => {
       console.log('WebSocket连接成功')
       isConnected.value = true
       connectionStatus.value = 'connected'
@@ -84,7 +85,7 @@ const connectWebSocket = () => {
     }
 
     // 接收消息 - 修复消息解析逻辑
-    ws.value.onmessage = (event) => {
+    ws.onmessage = (event) => {
       try {
         console.log('收到原始消息:', event.data)
         const data = JSON.parse(event.data)
@@ -101,7 +102,7 @@ const connectWebSocket = () => {
     }
 
     // 连接关闭
-    ws.value.onclose = (event) => {
+    ws.onclose = (event) => {
       console.log('WebSocket连接关闭:', event.code, event.reason)
       isConnected.value = false
       connectionStatus.value = 'disconnected'
@@ -114,7 +115,7 @@ const connectWebSocket = () => {
     }
 
     // 连接错误
-    ws.value.onerror = (error) => {
+    ws.onerror = (error) => {
       console.error('WebSocket连接错误:', error)
       connectionStatus.value = 'error'
       ElMessage.error('连接错误')
@@ -329,14 +330,14 @@ const filteredFriends = computed(() => {
 
 // 发送消息到WebSocket
 const sendMessageToWebSocket = (message) => {
-  if (ws.value && ws.value.readyState === WebSocket.OPEN) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
     // 修复消息格式，确保toUserId是数字
     const messageData = {
       toUserId: parseInt(activeFriend.value.id), // 确保是数字
       message: message
     }
     console.log('发送消息:', messageData)
-    ws.value.send(JSON.stringify(messageData))
+    ws.send(JSON.stringify(messageData))
     return true
   } else {
     console.error('WebSocket 连接未打开')

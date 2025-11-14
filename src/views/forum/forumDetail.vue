@@ -50,7 +50,7 @@ const forumPost = reactive({
   author_avatar: '',
   page_views: 0,
   label: '',
-  cover_avatar: 's',
+  cover_avatar: '',
   type: '',
   visible_range: '',
   like_count: 0,
@@ -81,8 +81,8 @@ const getForumDetail = async () => {
   }
     // 检查用户是否关注了作者
     checkFocusStatus(forumPost.user_id)
-    // getPostLikeStatus()
-    // getPostCollectStatus()
+    getPostLikeStatus()
+    getPostCollectStatus()
 }
 
 
@@ -274,6 +274,7 @@ const sendComment = async () => {
             ElMessage.success('评论成功')
             const parentComment = comments.List.find(comment => comment.id === replyToParentCommentId.value)
             await getCommentReplies(parentComment)
+            parentComment.reply_count++
           } else {
             ElMessage.error(response.data.msg)
           }
@@ -673,7 +674,7 @@ onMounted(() => {
               <!-- 展开/收起按钮 -->
               <div class="replies-toggle" @click="toggleReplies(comment);">
                 <span class="toggle-text">
-                  {{ expandedReplies[comment.id] ? '收起' : '展开' }}回复内容
+                  {{ expandedReplies[comment.id] ? '收起' : '展开' }} {{comment.reply_count}}条回复
                 </span>
                 <svg 
                   class="toggle-icon" 
