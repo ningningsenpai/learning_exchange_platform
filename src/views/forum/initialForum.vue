@@ -64,11 +64,7 @@ const getOutstandingCreator = async () => {
 
 
 
-// 获取热门话题列表(帖子对象，仅展示标题，跳转通过id查询内容)
-const outstandingTopic = reactive({
-  id: '1',
-  title: '摸鱼摸鱼好好好好好好快乐'
-})
+// 获取热门话题列表(帖子id，标题)
 const outstandingTopics = reactive({
   list: []
 })

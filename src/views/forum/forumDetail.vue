@@ -83,6 +83,35 @@ const getForumDetail = async () => {
     checkFocusStatus(forumPost.user_id)
     getPostLikeStatus()
     getPostCollectStatus()
+    getRecommendPosts()
+}
+
+// 左侧推荐帖子(返回id 和 title)
+const recommendPostsApi = '/api/getTopicSimilarPosts'
+const recommendPosts = reactive({
+  list: []
+})
+const getRecommendPosts = async () => {
+  try {
+    const response = await axios.get(recommendPostsApi, {
+      headers: {
+        'token': JWT_TOKEN,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      params: {
+        id: forumPost.id,
+        subject: forumPost.subject,
+        sub_classify: forumPost.sub_classify
+      }
+    })
+    if(response.data.code == 1) {
+      recommendPosts.list = response.data.data
+    } else {
+      ElMessage.error(response.data.msg)
+    }
+  } catch (error) {
+    ElMessage.error('获取推荐帖子失败')
+  }
 }
 
 
@@ -90,7 +119,6 @@ const getForumDetail = async () => {
 const comments = reactive({
   List: []
 })
-
 // 评论弹窗控制
 const commentDialogVisible = ref(false)
 const replyToUser = ref('') // 当前回复的用户名
