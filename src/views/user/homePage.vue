@@ -4,6 +4,7 @@ import { ElMessage } from 'element-plus';
 import axios from 'axios';
 import router from '@/router'
 import { useUserStore } from '@/stores/userStore'
+import { version } from 'vite';
 
 // 获取用户存储实例
 const userStore = useUserStore()
@@ -221,6 +222,112 @@ const getForumCount = async () => {
         ElMessage.error("获取创作者成就信息失败，请重试")
     }
 }
+
+
+// 获取发布，收藏，动态的帖子
+const forumPost1 = reactive({
+  user_id: '1',
+  forum_id: '1',
+  title: '这是一个很有趣的帖子标题',
+  publish_date: '2024-06-01',
+  summary: '这是帖子内容的简要介绍',
+  content: '这是帖子内容的这是帖子内容的这是帖子内容的这是帖子内容的这是帖子内容的这是帖子内容的这是帖子内容的,这是帖子内容的这是帖子内容的这是帖子内容的,这是帖子内容的这是帖子内容的这是帖子内容的这是帖子内容的.',
+  author_name: '张三哈哈哈',
+  author_avatar: 'src/static/image.png',
+  page_views: 1234,
+  label: ['前端开发', 'Vue.js'],
+  cover_avatar: 'src/static/1.jpg',
+  type: '原创',
+  visible_range: '公开',
+  like_count: 456,
+  collect_count: 78,
+  comment_count: 2,
+  subject: '计算机',
+  sub_classify: '前端',
+  is_like: true,
+  is_collect: true,
+  is_followed: true
+})
+function getShowPost() {
+  if(currentPage === 'postShow') {
+    return userPosts.List
+  } else if(currentPage === 'collectPostShow') {
+    return userCollects.list
+  } else if(currentPage === 'dynamicShow') {
+    return userDynamics.list
+  }
+}
+// 获取用户发布的帖子数据
+const userPosts = reactive({
+    List: [forumPost1, forumPost1, forumPost1, forumPost1]
+})
+const userPostApi = '/api/getLoginUserPosts'
+const getUserPost = async () => {
+  try {
+      const response = await axios.get(userPostApi,{
+        headers: {
+          'token': JWT_TOKEN,
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      })
+      if(response.data.code === 1) {
+          userPosts.List = response.data.data
+      } else {
+          ElMessage.error(response.data.msg)
+      }
+  } catch (error) {
+      ElMessage.error("获取个人帖子失败，请重试")
+  }
+}
+// 获取用户收藏数据
+const userCollects = reactive({
+  list: [forumPost1, forumPost1, forumPost1, forumPost1]
+})
+const getUserCollectsApi = '/api/userCenter/getUserCollects'
+const getUserCollects = async () => {
+  try {
+    const response = await axios.get(getUserCollectsApi,{
+      headers: {
+        'token': JWT_TOKEN,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+    })
+    if(response.data.code === 1) {
+      userCollects.list = response.data.data
+    } else {
+      ElMessage.error(response.data.msg)
+    }
+  } catch (error) {
+    ElMessage.error("获取用户收藏失败，请重试")
+  }
+}
+const userDynamics = reactive({
+  list: [forumPost1, forumPost1, forumPost1, forumPost1]
+})
+// 获取用户动态数据
+const dynamicsCount = ref(50)
+const getUserDynamicsApi = '/api/userCenter/getUserDynamics'
+const getUserDynamics = async () => {
+  try {
+    const response = await axios.get(getUserDynamicsApi, {
+      params: {
+        count: dynamicsCount.value
+      },
+      headers: {
+        'token': JWT_TOKEN,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+    })
+    if(response.data.code === 1) {
+      userDynamics.list = response.data.data
+    } else {
+      ElMessage.error(response.data.msg)
+    }
+  } catch (error) {
+    ElMessage.error("获取用户动态失败，请重试")
+  }
+}
+
 
 // 交易相关按钮
 const dealButtonContent = ref([
@@ -560,6 +667,91 @@ const unfollowUser = async (userId) => {
   getSocialInfos()
 }
 
+// 帖子搜索
+const searchKeyword = ref('')
+const searchPostApi = '/api/forum/searchPost'
+const searchPost = async (currentPage) => {
+  try {
+    const response = await axios.post(searchPostApi, {
+      type: currentPage,
+      keyword: searchKeyword.value,
+    }, {
+      headers: {
+        'token': JWT_TOKEN,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+    });
+    if(response.data.code === 1) {
+      getShowPost() = response.data.data
+    } else {
+      ElMessage.error(response.data.msg)
+    }
+  } catch (error) {
+    ElMessage.error('搜索帖子失败');
+  }
+}
+
+
+
+// 商品相关接口实现
+// 上传书籍信息
+const bookDataBase = reactive({
+  name: '',
+  author: '',
+  publisher: '',
+  version: '',
+  price: 0,
+  type: '',
+  classify: '',
+  subClassify: '',
+  isNote: false,
+  description: '',
+  avatar: []
+})
+
+// 查找上传的书籍商品
+const userBooks = reactive({
+  list: []
+})
+const getUserBooksApi = '/api/books/getUserBooks'
+const getUserBooks = async () => {
+  try {
+    const response = await axios.get(getUserBooksApi,{
+      headers: {
+        'token': JWT_TOKEN,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+    })
+    if(response.data.code === 1) {
+      userBooks.list = response.data.data
+    } else {
+      ElMessage.error(response.data.msg)
+    }
+  } catch (error) {
+    ElMessage.error("获取用户书籍商品失败，请重试")
+  }
+}
+
+// 修改上传的书籍商品信息
+
+
+// 下架书籍商品
+const deleteBookApi = '/api/books/deleteBook'
+const deleteBook = async (bookId) => {
+  try {
+    await axios.post(deleteBookApi, {
+      book_id: bookId
+    }, {
+      headers: {
+        'token': JWT_TOKEN,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+    });
+  } catch (error) {
+    ElMessage.error('下架书籍商品失败');
+  }
+}
+
 </script>
 
 <template>
@@ -724,7 +916,60 @@ const unfollowUser = async (userId) => {
         </div>
       </div>
 
+
+      <!-- 上传书籍商品 -->
+
+      <!-- 查看上传的书籍商品 -->
       
+      <!-- 帖子展示（我的，收藏，动态） -->
+      <div 
+      class="forum-show"
+      v-if="currentPage === 'postShow' || currentPage === 'collectPostShow' || currentPage === 'dynamicShow'"
+      >
+        <div class="forum-search" :v-model="searchKeyword" @click="searchPost(currentPage)">
+          
+        </div>
+        <div class="forum-posts-container">
+          <div class="forum-posts">
+            <div v-for="post in getShowPost()" :key="post.forum_id" class="forum-post">
+              <div class="forum-main">
+                <!-- 发帖用户信息 -->
+                <div class="forum-userInfo">
+                  <div class="userInfo-avatar-container">
+                    <img :src="post.author_avatar" alt="用户头像" class="forum-userInfo-avatar"/>
+                  </div>
+                  <div class="userInfo-details">
+                    <p class="userInfo-name">{{ post.author_name }}</p>
+                    <p class="userInfo-stats">发帖时间: {{ post.publish_date }}</p>
+                  </div>
+                </div>
+                
+                <!-- 帖子标题和简介 -->
+                <div class="forum-content" @click="goToPostDetail(post.forum_id)">
+                  <h2 class="forum-title">{{ post.title }}</h2>
+                  <p class="forum-summary">{{ post.summary }}</p>
+                </div>
+                
+                <!-- 帖子数据展示 -->
+                <div class="forum-data">
+                  <span class="forum-subClassify">#{{ post.sub_classify }}</span>
+                  <span class="forum-label">#{{ post.label }}</span>
+                  <span class="forum-viewCount" @click="goToPostDetail(post.forum_id)">浏览量:{{ post.page_views }}</span>
+                  <span class="forum-replyCount" @click="goToPostDetail(post.forum_id)">评论量:{{ post.comment_count }}</span>
+                  <span class="forum-likeCount" @click="goToPostDetail(post.forum_id)">点赞量:{{ post.like_count }}</span>
+                  <span class="forum-collectCount" @click="goToPostDetail(post.forum_id)">收藏量:{{ post.collect_count }}</span>
+                </div>
+              </div>
+              
+              <!-- 帖子封面图,右侧 -->
+              <div class="forum-coverAvatar" @click="goToPostDetail(post.forum_id)">
+                <img :src="post.cover_avatar" alt="帖子封面" class="cover-avatar-img"/>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
 
     <!-----------------------  修改弹窗显示区域  ---------------------->
@@ -897,6 +1142,10 @@ const unfollowUser = async (userId) => {
         </div>
       </div>
     </div>
+
+    <!-- 修改上传书籍弹窗 -->
+
+    <!-- 下架书籍商品弹窗 -->
 
   </div>
  
