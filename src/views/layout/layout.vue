@@ -17,7 +17,7 @@
           <router-link to="/initialChats" class="nav-link">消息</router-link>
           <router-link to="/shoppingCar" class="nav-link">购物车</router-link>
           <router-link to="/buyAndSoldOrders" class="nav-link">订单</router-link>
-          <router-link to="/userHomePage" class="nav-link">个人中心</router-link>
+          <router-link to="/homePage" class="nav-link">个人中心</router-link>
         </div>
       </el-header>
 

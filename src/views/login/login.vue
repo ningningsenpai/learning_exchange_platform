@@ -57,7 +57,7 @@
 
 const gotoNavigation = () => {
   router.push({
-    path: '/initialForum',
+    path: '/homePage',
   })
 }
 

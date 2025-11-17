@@ -1,6 +1,6 @@
 <script setup>
 import { ref, reactive, computed, onMounted, nextTick, watch } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElNotification } from 'element-plus'
 import axios from 'axios'
 import { useUserStore } from '@/stores/userStore'
 
@@ -38,13 +38,19 @@ const getUserInfo = async () => {
   }
 }
 
-// WebSocket配置
+// WebSocket配置 - 修改为与后端CORS配置匹配
 const isConnected = ref(false)
 const connectionStatus = ref('disconnected')
-const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+
+// 根据当前页面协议动态构建WebSocket URL
+const getWebSocketUrl = () => {
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  const host = '10.244.193.207:8080' // 使用当前页面的host，确保同源
+  return `${protocol}//${host}/websocket/chat?token=${encodeURIComponent(JWT_TOKEN)}`
+}
+
 const wsConfig = reactive({
-  url: `ws://10.244.193.207:8080/websocket/chat`,
-  // url: `ws://localhost:8080/websocket/chat`,
+  url: getWebSocketUrl(),
   reconnectInterval: 3000,
   maxReconnectAttempts: 5,
   reconnectAttempts: 0
@@ -64,16 +70,20 @@ const handleReconnect = () => {
   }
 }
 
-const ws = null;
-// 连接WebSocket
+let ws = null;
+// 连接WebSocket - 修改连接逻辑
 const connectWebSocket = () => {
-  ws = new WebSocket(wsConfig.url)
   try {
     // 如果已有连接，先关闭
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.close()
     }
 
+    // 更新WebSocket URL，包含最新的token
+    wsConfig.url = getWebSocketUrl()
+    console.log('连接WebSocket:', wsConfig.url)
+    
+    ws = new WebSocket(wsConfig.url)
 
     // 连接成功
     ws.onopen = () => {
@@ -106,11 +116,12 @@ const connectWebSocket = () => {
       console.log('WebSocket连接关闭:', event.code, event.reason)
       isConnected.value = false
       connectionStatus.value = 'disconnected'
-      ElMessage.warning('连接已断开')
-
-      // 如果不是正常关闭，尝试重连
+      
       if (event.code !== 1000) {
+        ElMessage.warning('连接已断开，正在尝试重连...')
         handleReconnect()
+      } else {
+        ElMessage.info('连接已关闭')
       }
     }
 
@@ -128,6 +139,9 @@ const connectWebSocket = () => {
   }
 }
 
+// 配置axios默认值以匹配后端CORS
+axios.defaults.withCredentials = true
+
 // 处理WebSocket消息
 const handleWebSocketMessage = (messageData) => {
   console.log('处理消息:', messageData)
@@ -138,6 +152,9 @@ const handleWebSocketMessage = (messageData) => {
       break
     case 'online':
       handleOnlineMessage(messageData)
+      break
+    case 'status_change':
+      handleStatusChangeMessage(messageData)
       break
     case 'message':
       handleRealtimeMessage(messageData)
@@ -153,9 +170,11 @@ const handleFriendMessage = (messageData) => {
     // 清空现有列表并添加新数据
     chatDatas.List = messageData.list.map(friend => ({
       ...friend,
-      messages: checkMessages(friend.id) // 获取历史消息
+      messages: checkMessages(friend.id), // 获取历史消息
+      isOnline: onlineFriends.list.includes(friend.id) // 设置在线状态
     }))
     console.log('更新好友列表:', chatDatas.List)
+    updateUnreadBadges()
   }
 }
 
@@ -168,12 +187,99 @@ const handleOnlineMessage = (messageData) => {
   if (messageData.list && Array.isArray(messageData.list)) {
     onlineFriends.list = messageData.list
     console.log('更新在线好友:', onlineFriends.list)
+    
+    // 更新好友列表中的在线状态
+    chatDatas.List.forEach(friend => {
+      friend.isOnline = onlineFriends.list.includes(friend.id)
+    })
   }
+}
+
+// 处理状态变化消息
+const handleStatusChangeMessage = (statusData) => {
+  const { id, is_online, name, avatar } = statusData
+  console.log(`好友状态变化: ${name} ${is_online ? '上线' : '下线'}`)
+  
+  // 更新在线好友列表
+  if (is_online) {
+    if (!onlineFriends.list.includes(id)) {
+      onlineFriends.list.push(id)
+    }
+  } else {
+    const index = onlineFriends.list.indexOf(id)
+    if (index > -1) {
+      onlineFriends.list.splice(index, 1)
+    }
+  }
+  
+  // 更新好友列表中的在线状态
+  const friend = chatDatas.List.find(item => item.id === id)
+  if (friend) {
+    friend.isOnline = is_online
+  } else {
+    // 如果好友不在列表中，添加到列表
+    chatDatas.List.unshift({
+      id,
+      name: name || `用户${id}`,
+      avatar: avatar || '',
+      content: '',
+      sendTime: new Date().toLocaleString(),
+      isRead: false,
+      messages: [],
+      isOnline: is_online
+    })
+  }
+  
+  // 显示状态通知
+  showStatusNotification(id, name || `用户${id}`, is_online)
+}
+
+// 显示状态通知
+const showStatusNotification = (friendId, friendName, isOnline) => {
+  ElNotification({
+    title: '好友状态更新',
+    message: `${friendName} ${isOnline ? '上线了' : '下线了'}`,
+    type: isOnline ? 'success' : 'warning',
+    duration: 3000,
+    onClick: () => {
+      // 点击通知时打开与该好友的聊天
+      const friend = chatDatas.List.find(item => item.id === friendId)
+      if (friend) {
+        selectFriend(friend)
+      }
+    }
+  })
 }
 
 // 判断是否在线
 const isOnline = (friendId) => {
   return onlineFriends.list.includes(friendId)
+}
+
+// 未读消息处理
+const unreadMessages = reactive({})
+
+// 添加未读消息
+const addUnreadMessage = (friendId) => {
+  if (!unreadMessages[friendId]) {
+    unreadMessages[friendId] = 0
+  }
+  unreadMessages[friendId]++
+  updateUnreadBadges()
+}
+
+// 清除未读消息
+const clearUnreadMessages = (friendId) => {
+  if (unreadMessages[friendId]) {
+    delete unreadMessages[friendId]
+    updateUnreadBadges()
+  }
+}
+
+// 更新未读徽章
+const updateUnreadBadges = () => {
+  // 这里可以添加更新UI未读徽标的逻辑
+  console.log('未读消息更新:', unreadMessages)
 }
 
 // 处理实时消息
@@ -182,18 +288,20 @@ const handleRealtimeMessage = (messageData) => {
 
   const fromUserId = messageData.sender_id
   const messageContent = messageData.message?.content || messageData.content
+  const senderName = messageData.sender_name || `用户${fromUserId}`
 
   // 查找或创建好友
   let friend = chatDatas.List.find(item => item.id === fromUserId)
   if (!friend) {
     friend = {
       id: fromUserId,
-      name: messageData.sender_name || `用户${fromUserId}`,
+      name: senderName,
       avatar: messageData.sender_avatar || '',
       content: messageContent,
       sendTime: new Date().toLocaleString(),
       isRead: false,
-      messages: []
+      messages: [],
+      isOnline: isOnline(fromUserId)
     }
     chatDatas.List.unshift(friend)
   }
@@ -221,11 +329,29 @@ const handleRealtimeMessage = (messageData) => {
   if (activeFriend.value?.id === fromUserId) {
     scrollToBottom()
   } else {
-    // 显示通知
-    ElMessage.info(`新消息来自 ${friend.name}`)
+    // 显示通知并增加未读计数
+    showNewMessageNotification(fromUserId, senderName, messageContent)
+    addUnreadMessage(fromUserId)
   }
 
   console.log('消息已添加到聊天记录')
+}
+
+// 显示新消息通知
+const showNewMessageNotification = (fromUserId, fromUserName, content) => {
+  ElNotification({
+    title: `新消息来自 ${fromUserName}`,
+    message: content.length > 50 ? content.substring(0, 50) + '...' : content,
+    type: 'info',
+    duration: 5000,
+    onClick: () => {
+      // 点击通知时打开与该好友的聊天
+      const friend = chatDatas.List.find(item => item.id === fromUserId)
+      if (friend) {
+        selectFriend(friend)
+      }
+    }
+  })
 }
 
 // 好友列表数据
@@ -233,7 +359,7 @@ const chatDatas = reactive({
   List: []
 })
 
-// 获取好友聊天记录
+// 获取好友聊天记录 - 确保使用正确的请求配置
 const friendsDataApi = '/api/chat/open'
 const getFriendData = async (friendId) => {
   try {
@@ -311,6 +437,9 @@ const toggleGroup = (groupId) => {
 const selectFriend = async (friend) => {
   friend.isRead = true
   activeFriend.value = friend
+
+  // 清除该好友的未读消息
+  clearUnreadMessages(friend.id)
 
   // 确保有消息数组
   if (!friend.messages) {
@@ -420,7 +549,7 @@ const formatFileSize = (bytes) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
 
-// 发送图片消息
+// 发送图片消息 - 确保使用正确的请求配置
 const sendImageMessage = async () => {
   if (!selectedFile.value) return
 
@@ -516,13 +645,19 @@ watch(() => {
   scrollToBottom()
 })
 
+// 监听token变化，重新连接WebSocket
+watch(() => JWT_TOKEN, (newToken) => {
+  if (newToken) {
+    connectWebSocket()
+  }
+})
+
 onMounted(() => {
   getUserInfo()
 })
 </script>
 
 <template>
-  <!-- 模板部分保持不变，只修改了部分逻辑 -->
   <div class="chat-container">
     <!-- 左侧边栏 -->
     <div class="sidebar">
@@ -573,8 +708,11 @@ onMounted(() => {
                   @click="selectFriend(friend)"
                   :class="{ active: activeFriend && activeFriend.id === friend.id }"
               >
-                <div class="friend-avatar" :class="isOnline(friend.id) ? 'online' : 'offline'">
+                <div class="friend-avatar" :class="friend.isOnline ? 'online' : 'offline'">
                   <img :src="friend.avatar" alt="" class="friend-avatar-image">
+                  <span class="unread-badge" v-if="unreadMessages[friend.id]">
+                    {{ unreadMessages[friend.id] }}
+                  </span>
                 </div>
                 <div class="friend-info">
                   <div class="friend-name">{{ friend.name }}</div>
@@ -582,7 +720,12 @@ onMounted(() => {
                     {{ friend.content }}
                   </div>
                 </div>
-                <div class="friend-indicator" v-if="!friend.isRead"></div>
+                <div class="friend-meta">
+                  <div class="friend-time">{{ friend.sendTime }}</div>
+                  <div class="friend-online-status" :class="friend.isOnline ? 'online' : 'offline'">
+                    {{ friend.isOnline ? '在线' : '离线' }}
+                  </div>
+                </div>
               </li>
             </ul>
           </div>
@@ -595,13 +738,13 @@ onMounted(() => {
       <!-- 聊天头部 -->
       <div class="chat-header" v-if="activeFriend">
         <div class="friend-info-header">
-          <div class="friend-avatar" :class="isOnline(activeFriend.id) ? 'online' : 'offline'">
+          <div class="friend-avatar" :class="activeFriend.isOnline ? 'online' : 'offline'">
             <img :src="activeFriend.avatar" alt="" class="friend-avatar-image">
           </div>
           <div class="friend-details">
             <div class="friend-name">{{ activeFriend.name }}</div>
-            <div class="friend-status" :class="isOnline(activeFriend.id) ? 'online' : 'offline'">
-              {{ isOnline(activeFriend.id) ? '在线' : '离线' }}
+            <div class="friend-status" :class="activeFriend.isOnline ? 'online' : 'offline'">
+              {{ activeFriend.isOnline ? '在线' : '离线' }}
             </div>
           </div>
         </div>
@@ -726,7 +869,6 @@ onMounted(() => {
   </div>
 </template>
 
-
 <style scoped>
 .chat-container {
   height: 100%;
@@ -771,6 +913,7 @@ onMounted(() => {
   margin-right: 12px;
   color: white;
   border: 2px solid white;
+  position: relative;
 }
 
 .user-avatar-image {
@@ -793,6 +936,10 @@ onMounted(() => {
 .user-status {
   font-size: 12px;
   color: #4CAF50;
+}
+
+.user-status.disconnected {
+  color: #9E9E9E;
 }
 
 .search-box {
@@ -895,7 +1042,7 @@ onMounted(() => {
 }
 
 .friend-item {
-  padding: 10px 15px;
+  padding: 12px 15px;
   display: flex;
   align-items: center;
   cursor: pointer;
@@ -915,17 +1062,18 @@ onMounted(() => {
 }
 
 .friend-avatar {
-  width: 38px;
-  height: 38px;
+  width: 45px;
+  height: 45px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: bold;
-  margin-right: 10px;
+  margin-right: 12px;
   color: white;
   font-size: 14px;
   position: relative;
+  flex-shrink: 0;
 }
 
 .friend-avatar-image {
@@ -948,16 +1096,46 @@ onMounted(() => {
   position: absolute;
   bottom: 2px;
   right: 2px;
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   background: #4CAF50;
   border-radius: 50%;
+  border: 2px solid white;
+}
+
+.friend-avatar.offline::after {
+  content: '';
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  width: 10px;
+  height: 10px;
+  background: #9E9E9E;
+  border-radius: 50%;
+  border: 2px solid white;
+}
+
+.unread-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background: #ff4757;
+  color: white;
+  border-radius: 10px;
+  min-width: 18px;
+  height: 18px;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
   border: 2px solid white;
 }
 
 .friend-info {
   flex: 1;
   overflow: hidden;
+  min-width: 0;
 }
 
 .friend-name {
@@ -978,12 +1156,35 @@ onMounted(() => {
   text-overflow: ellipsis;
 }
 
-.friend-indicator {
-  width: 8px;
-  height: 8px;
-  background: #ff6b6b;
-  border-radius: 50%;
+.friend-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
   margin-left: 8px;
+  flex-shrink: 0;
+}
+
+.friend-time {
+  font-size: 10px;
+  color: #999;
+  margin-bottom: 4px;
+}
+
+.friend-online-status {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+.friend-online-status.online {
+  background: #e8f5e8;
+  color: #4CAF50;
+}
+
+.friend-online-status.offline {
+  background: #f5f5f5;
+  color: #9E9E9E;
 }
 
 /* 右侧聊天区域样式 */
@@ -992,6 +1193,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   background: white;
+  position: relative;
 }
 
 .chat-header {
@@ -1091,6 +1293,8 @@ onMounted(() => {
   font-weight: bold;
   font-size: 16px;
   text-transform: uppercase;
+  background: #81C784;
+  border-radius: 50%;
 }
 
 /* 消息内容样式优化 */
@@ -1127,17 +1331,28 @@ onMounted(() => {
 
 /* 图片消息样式 */
 .message-image {
-  max-width: 50px;
-  max-height: 50px;
-  border-radius: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 6px;
+}
+
+.image-content {
+  max-width: 300px;
+  max-height: 300px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 1px solid #e0e0e0;
+}
+
+.image-content:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .message-time {
-  margin-top: 20px;
   font-size: 11px;
   color: #9e9e9e;
   text-align: right;
+  margin-top: 4px;
 }
 
 /* 消息气泡箭头效果 */
@@ -1184,6 +1399,11 @@ onMounted(() => {
   
   .message-text {
     font-size: 13px;
+  }
+
+  .image-content {
+    max-width: 250px;
+    max-height: 250px;
   }
 }
 
@@ -1556,22 +1776,6 @@ onMounted(() => {
   border-radius: 8px;
 }
 
-/* 消息图片样式优化 */
-
-.image-content {
-  max-width: 300px;
-  max-height: 300px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  border: 1px solid #e0e0e0;
-}
-
-.image-content:hover {
-  transform: scale(1.02);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
 /* 动画效果 */
 @keyframes fadeIn {
   from {
@@ -1584,11 +1788,6 @@ onMounted(() => {
 
 /* 响应式调整 */
 @media (max-width: 768px) {
-  .image-content {
-    max-width: 250px;
-    max-height: 250px;
-  }
-  
   .modal-content {
     max-width: 95%;
     max-height: 95%;
