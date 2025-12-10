@@ -30,6 +30,14 @@ const getUserInfo = async () => {
       Object.assign(userInfo, response.data.data)
       // 获取用户信息后连接WebSocket
       connectWebSocket()
+    //   fetch('http://10.244.193.207:8080/api/websocket/test')
+    // .then(response => response.text())
+    // .then(data => {
+    //   console.log('✅ HTTP 测试成功:', data);
+    // })
+    // .catch(error => {
+    //   console.error('❌ HTTP 测试失败:', error);
+    // });
     } else {
       ElMessage.error(response.data.msg)
     }
@@ -96,6 +104,7 @@ const connectWebSocket = () => {
 
     // 接收消息 - 修复消息解析逻辑
     ws.onmessage = (event) => {
+      
       try {
         console.log('收到原始消息:', event.data)
         const data = JSON.parse(event.data)

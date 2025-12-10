@@ -57,7 +57,7 @@
 
 const gotoNavigation = () => {
   router.push({
-    path: '/homePage',
+    path: '/initialChats',
   })
 }
 
