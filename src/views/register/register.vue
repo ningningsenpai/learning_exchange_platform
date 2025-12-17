@@ -1,65 +1,101 @@
 <script setup>
-  import { reactive, onMounted, ref } from 'vue'
-  import { ElMessage } from 'element-plus'
-  import axios from 'axios'
-  import qs from 'qs' 
+import { reactive, onMounted, ref } from 'vue'
+import { ElMessage } from 'element-plus'
+import axios from 'axios'
+import qs from 'qs' 
 
-  const registerAPI = '/api/register'
+const registerAPI = '/api/register'
 
-  // 传递用户信息
-  const form = reactive({
-    phone: '',
-    username: '',
-    password: '',
-    confirmPassword: '',
-    securityCode: '',
-    grade: '',
-    major: ''
-  })
+// 传递用户信息
+const form = reactive({
+  phone: '',
+  username: '',
+  password: '',
+  confirmPassword: '',
+  securityCode: '',
+  grade: '',
+  major: ''
+})
 
-   //获取验证码
-  const codeImage = ref('')
-  const getCaptcha = async () => {
-    try {
-      const response = await axios.get('/api/captcha')
-      if(response.data.code == 1) {
-        codeImage.value = `data:image/jpeg;base64,${response.data.data.body}`
-      } else {
-        ElMessage.error(response.data.msg)
-      }
-    } catch (error) {
-      ElMessage.error('获取验证码失败，请重试')
+  //获取验证码
+const codeImage = ref('')
+const getCaptcha = async () => {
+  try {
+    const response = await axios.get('/api/captcha')
+    if(response.data.code == 1) {
+      codeImage.value = `data:image/jpeg;base64,${response.data.data.body}`
+    } else {
+      ElMessage.error(response.data.msg)
     }
+  } catch (error) {
+    ElMessage.error('获取验证码失败，请重试')
   }
-   onMounted(() => {
-    getCaptcha()
+}
+
+// 鼠标离开悬浮区域自动判断账户名和手机号是否存在
+const judegeExist = ref(false)
+const infoExist = async (info, api) => {
+  try {
+    if(info === phone) {
+        const response = await axios.post(api, {
+          phone: form.phone
+        })
+      if(response.data.code === 1) {
+        judegeExist.value = true
+      } else {
+        judegeExist.value = false
+      }
+    } else {
+      const response = await axios.post(api, {
+        username: form.username
+      })
+      if(response.data.code === 1) {
+        judegeExist.value = true
+      } else {
+        judegeExist.value = false
+      }
+    }
+  } catch (error) {
+  }
+}
+watch(() => form.phone, () => {
+  infoExist(form.phone, '/api/checkPhoneExist')
+})
+
+watch(() => form.username, () => {
+  infoExist(form.username, '/api/checkUsernameExist')
+})
+
+
+const register = async (formData) => {
+  const response = await axios.post(registerAPI, qs.stringify(formData),{
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    }
   })
+  return response.data
+}
 
-  
- const register = async (formData) => {
-    const response = await axios.post(registerAPI, qs.stringify(formData),{
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
+const onSubmit = async() => {
+  console.log(form)
+    try {
+      const response = await register(form)
+      if(response.code == 1) {
+        ElMessage.success(response.msg)
+        router.push({name: 'navigation'})
+      } else {
+        ElMessage.error(response.msg)
       }
-    })
-    return response.data
-  }
+      console.log(response.data)
+    } catch (error) {
+      ElMessage.error(error.message)
+    }
+}
 
-  const onSubmit = async() => {
-    console.log(form)
-      try {
-        const response = await register(form)
-        if(response.code == 1) {
-          ElMessage.success(response.msg)
-          router.push({name: 'navigation'})
-        } else {
-          ElMessage.error(response.msg)
-        }
-        console.log(response.data)
-      } catch (error) {
-        ElMessage.error(error.message)
-      }
-  }
+
+  onMounted(() => {
+  getCaptcha()
+})
 </script>
 
 <template>

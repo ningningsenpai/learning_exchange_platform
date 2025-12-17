@@ -3,6 +3,7 @@ import { ref, reactive, computed, onMounted, nextTick, watch } from 'vue'
 import { ElMessage, ElNotification } from 'element-plus'
 import axios from 'axios'
 import { useUserStore } from '@/stores/userStore'
+import Cookies from 'js-cookie';
 
 // 获取用户存储实例
 const userStore = useUserStore()
@@ -30,14 +31,6 @@ const getUserInfo = async () => {
       Object.assign(userInfo, response.data.data)
       // 获取用户信息后连接WebSocket
       connectWebSocket()
-    //   fetch('http://10.244.193.207:8080/api/websocket/test')
-    // .then(response => response.text())
-    // .then(data => {
-    //   console.log('✅ HTTP 测试成功:', data);
-    // })
-    // .catch(error => {
-    //   console.error('❌ HTTP 测试失败:', error);
-    // });
     } else {
       ElMessage.error(response.data.msg)
     }
@@ -54,7 +47,7 @@ const connectionStatus = ref('disconnected')
 const getWebSocketUrl = () => {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
   const host = '10.244.193.207:8080' // 使用当前页面的host，确保同源
-  return `${protocol}//${host}/websocket/chat?token=${encodeURIComponent(JWT_TOKEN)}`
+  return `${protocol}//${host}/websocket/chat?token=${encodeURIComponent(JWT_TOKEN)}&user_id=${userInfo.id}`
 }
 
 const wsConfig = reactive({
@@ -95,11 +88,15 @@ const connectWebSocket = () => {
 
     // 连接成功
     ws.onopen = () => {
-      console.log('WebSocket连接成功')
-      isConnected.value = true
-      connectionStatus.value = 'connected'
-      wsConfig.reconnectAttempts = 0
-      ElMessage.success('连接成功')
+      if(ws !== null) {
+        console.log('WebSocket连接成功')
+        isConnected.value = true
+        connectionStatus.value = 'connected'
+        wsConfig.reconnectAttempts = 0
+        ElMessage.success('连接成功')
+      } else {
+        ElMessage.error('连接失败')
+      }
     }
 
     // 接收消息 - 修复消息解析逻辑

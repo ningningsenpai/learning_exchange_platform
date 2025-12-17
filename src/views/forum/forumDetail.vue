@@ -42,22 +42,22 @@ const forumId = ref(0)
 const forumPost = reactive({
   id: 0,
   user_id: 0,
-  title: '',
-  publish_date: '',
-  summary: '',
-  content: '',
-  author_name: '',
+  title: '标题1',
+  publish_date: '2023-01-01',
+  summary: '这是帖子的摘要',
+  content: '这是帖子的内容',
+  author_name: '作者1',
   author_avatar: '',
-  page_views: 0,
-  label: '',
+  page_views: 10,
+  label: '标签1',
   cover_avatar: '',
-  type: '',
-  visible_range: '',
-  like_count: 0,
-  collect_count: 0,
-  comment_count: 0,
-  subject: '',
-  sub_classify: '',
+  type: '原创',
+  visible_range: '公开',
+  like_count: 10,
+  collect_count: 10,
+  comment_count: 10,
+  subject: '学科1',
+  sub_classify: '分类1',
 })
 const getForumDetailApi = '/api/getPostInfoById'
 const getForumDetail = async () => {
@@ -89,7 +89,16 @@ const getForumDetail = async () => {
 // 左侧推荐帖子(返回id 和 title)
 const recommendPostsApi = '/api/getTopicSimilarPosts'
 const recommendPosts = reactive({
-  list: []
+  list: [
+    {
+      id: 1,
+      title: '推荐帖子1'
+    },
+    {
+      id: 2,
+      title: '推荐帖子2'
+    },
+  ]
 })
 const getRecommendPosts = async () => {
   try {
@@ -112,6 +121,15 @@ const getRecommendPosts = async () => {
   } catch (error) {
     ElMessage.error('获取推荐帖子失败')
   }
+}
+
+const goToForumDetail = (postId) => {
+  router.push({
+    path: '/forumDetail',
+    query: {
+      id: postId
+    }
+  })
 }
 
 
@@ -558,30 +576,77 @@ onMounted(() => {
 
 <template>
   <div class="forum-container">
-    <!-- 内容区域 -->
-    <div class="forum-content">
-      <!-- 标题 -->
-      <h2 class="forum-title">{{forumPost.title}}</h2>
-      <!-- 版权，发布时间，阅读量，点赞数，收藏数 -->
-      <div class="forum-data">
-        <span>版权：{{forumPost.type}}</span>
-        <span>发布时间：{{forumPost.publish_date}}</span>
-        <span>阅读量：{{forumPost.page_views}}</span>
-        <span>点赞数：{{forumPost.like_count}}</span>
-        <span>收藏数：{{forumPost.collect_count}}</span>
+    <!-- 内容区域 - 使用左右分栏布局 -->
+    <div class="forum-layout">
+      <!-- 左侧推荐帖子 -->
+      <div class="recommend-sidebar">
+        <div class="recommend-header">
+          <h3 class="recommend-title">猜你想看</h3>
+          <div class="recommend-count">{{ recommendPosts.list.length }} 篇推荐</div>
+        </div>
+        <div class="recommend-list">
+          <div 
+            v-for="(item, index) in recommendPosts.list" 
+            :key="item.id" 
+            class="recommend-item"
+            @click="goToForumDetail(item.id)"
+          >
+            <div class="recommend-rank">
+              <span class="rank-number">{{ index + 1 }}</span>
+            </div>
+            <div class="recommend-content">
+              <h4 class="recommend-post-title">{{ item.title }}</h4>
+              <div class="recommend-meta">
+                <span class="recommend-hot" v-if="index < 3">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="#ff6b6b">
+                    <path d="M13.5.67s.74 2.65.74 4.8c0 2.06-1.35 3.73-3.41 3.73-2.07 0-3.63-1.67-3.63-3.73l.03-.36C5.21 7.51 4 10.62 4 14c0 4.42 3.58 8 8 8s8-3.58 8-8C20 8.61 17.41 3.8 13.5.67z"/>
+                  </svg>
+                  热门
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-      <!-- 标签 -->
-      <div class="forum-label">
-        <span v-if="forumPost.sub_classify" class="forum-label-item">#{{forumPost.sub_classify}}</span>
-        <span v-if="forumPost.label" class="forum-label-item">#{{forumPost.label}}</span>
-      </div>
-      <!-- 简介 -->
-      <div class="forum-summary">
-        <p>{{forumPost.summary}}</p>
-      </div>
-      <!-- 正文 -->
-      <div class="forum-body">
-        <p>{{forumPost.content}}</p>
+
+      <!-- 右侧帖子详情内容 -->
+      <div class="forum-content">
+        <!-- 标题 -->
+        <div class="forum-header">
+          <h1 class="forum-title">{{ forumPost.title }}</h1>
+          <div class="forum-meta">
+            <div class="meta-item">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="#666">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/>
+              </svg>
+              <span>{{ forumPost.publish_date }}</span>
+            </div>
+            <div class="meta-item">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="#666">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
+              </svg>
+              <span>{{ forumPost.page_views }} 阅读</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 标签 -->
+        <div class="forum-tags" v-if="forumPost.sub_classify || forumPost.label">
+          <span v-if="forumPost.sub_classify" class="tag primary-tag">#{{ forumPost.sub_classify }}</span>
+          <span v-if="forumPost.label" class="tag secondary-tag">#{{ forumPost.label }}</span>
+        </div>
+
+        <!-- 简介 -->
+        <div class="forum-summary" v-if="forumPost.summary">
+          <p class="summary-content">{{ forumPost.summary }}</p>
+        </div>
+
+        <!-- 正文 -->
+        <div class="forum-body">
+          <div class="body-content">
+            <p>{{ forumPost.content }}</p>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -752,73 +817,264 @@ onMounted(() => {
 .forum-container {
   position: relative;
   min-height: 100vh;
-  padding-bottom: 80px; /* 为底部固定区域留出空间 */
+  padding-bottom: 80px;
+  background: #f8f9fa;
 }
 
-.forum-content {
-  padding: 20px;
-  max-width: 800px;
+/* 主布局 */
+.forum-layout {
+  display: flex;
+  max-width: 1200px;
   margin: 0 auto;
+  padding: 20px;
+  gap: 24px;
 }
 
-.forum-title {
-  font-size: 24px;
-  font-weight: bold;
-  margin-bottom: 16px;
+/* 左侧推荐区域 */
+.recommend-sidebar {
+  width: 250px;
+  flex-shrink: 0;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  padding: 20px;
+  height: fit-content;
+  position: sticky;
+  top: 20px;
+}
+
+.recommend-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.recommend-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
   color: #333;
 }
 
-.forum-data {
+.recommend-count {
+  font-size: 12px;
+  color: #999;
+  background: #f5f5f5;
+  padding: 4px 8px;
+  border-radius: 12px;
+}
+
+.recommend-list {
   display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  margin-bottom: 16px;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.recommend-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 1px solid transparent;
+}
+
+.recommend-item:hover {
+  background: #f8f9fa;
+  border-color: #e9ecef;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.recommend-rank {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.rank-number {
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.recommend-item:nth-child(1) .recommend-rank {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+}
+
+.recommend-item:nth-child(2) .recommend-rank {
+  background: linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%);
+}
+
+.recommend-item:nth-child(3) .recommend-rank {
+  background: linear-gradient(135deg, #ffa726 0%, #ff9800 100%);
+}
+
+.recommend-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.recommend-post-title {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.recommend-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.recommend-hot {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #ff6b6b;
+  background: #fff5f5;
+  padding: 2px 6px;
+  border-radius: 10px;
+}
+
+/* 右侧内容区域 */
+.forum-content {
+  flex: 1;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  padding: 32px;
+}
+
+.forum-header {
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.forum-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1a1a1a;
+  line-height: 1.3;
+  margin: 0 0 16px 0;
+}
+
+.forum-meta {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 14px;
   color: #666;
 }
 
-.forum-data span {
-  background: #f5f5f5;
-  padding: 4px 8px;
-  border-radius: 4px;
-}
-
-.forum-label {
+/* 标签样式 */
+.forum-tags {
   display: flex;
-  flex-wrap: wrap;
   gap: 8px;
-  margin-bottom: 16px;
+  margin-bottom: 24px;
 }
 
-.forum-label-item {
+.tag {
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.primary-tag {
   background: #e3f2fd;
   color: #1976d2;
-  padding: 4px 12px;
-  border-radius: 16px;
-  font-size: 12px;
+  border: 1px solid #bbdefb;
 }
 
+.secondary-tag {
+  background: #f3e5f5;
+  color: #7b1fa2;
+  border: 1px solid #e1bee7;
+}
+
+/* 简介区域 */
 .forum-summary {
-  background: #f8f9fa;
-  padding: 16px;
-  border-radius: 8px;
-  margin-bottom: 20px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
   border-left: 4px solid #42b983;
 }
 
-.forum-summary p {
+.summary-content {
   margin: 0;
-  color: #666;
-  line-height: 1.6;
+  color: #4a5568;
+  font-size: 15px;
 }
 
+/* 正文区域 */
 .forum-body {
-  line-height: 1.8;
-  color: #333;
+  margin-bottom: 32px;
 }
 
-.forum-body p {
-  margin: 0;
+.body-content {
+  line-height: 1.8;
+  color: #2d3748;
+  font-size: 16px;
+}
+
+.body-content p {
+  margin: 0 0 16px 0;
+}
+
+.body-content p:last-child {
+  margin-bottom: 0;
+}
+
+/* 数据统计 */
+.forum-stats {
+  display: flex;
+  justify-content: center;
+  gap: 40px;
+  padding: 24px;
+  background: #f8f9fa;
+  border-radius: 12px;
+  margin-top: 32px;
+}
+
+.stat-item {
+  text-align: center;
+}
+
+.stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #42b983;
+  margin-bottom: 4px;
+}
+
+.stat-label {
+  font-size: 14px;
+  color: #666;
 }
 
 /* 底部固定区域 */
@@ -1239,6 +1495,22 @@ onMounted(() => {
 }
 
 /* 响应式设计 */
+@media (max-width: 1024px) {
+  .forum-layout {
+    flex-direction: column;
+    gap: 20px;
+  }
+  
+  .recommend-sidebar {
+    width: 100%;
+    position: static;
+    order: 2;
+  }
+  
+  .forum-content {
+    order: 1;
+  }
+}
 @media (max-width: 768px) {
   .forum-author-fixed {
     flex-direction: column;

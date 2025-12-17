@@ -1,4 +1,43 @@
 <script setup>
+import { ref, reactive, computed, onMounted, nextTick, watch } from 'vue'
+import { ElMessage, ElNotification } from 'element-plus'
+import axios from 'axios'
+import { useUserStore } from '@/stores/userStore'
+
+// 获取用户存储实例
+const userStore = useUserStore()
+const JWT_TOKEN = userStore.token
+
+const userInfoApi = '/api/getUserInfo'
+const userInfo = reactive({
+  id: 0,
+  username: '',
+  avatar: '',
+  grade: '',
+  major: '',
+  summary: '',
+})
+const getUserInfo = async () => {
+  try {
+    const response = await axios.get(userInfoApi, {
+      headers: {
+        'token': JWT_TOKEN,
+        'Content-Type': 'application/json'
+      }
+    })
+    if(response.data.code === 1) {
+      Object.assign(userInfo, response.data.data)
+    } else {
+      
+    }
+  } catch (error) {
+    console.log(error)
+  }
+}
+
+onMounted(() => {
+  getUserInfo()
+})
 
 </script>
 
@@ -17,7 +56,13 @@
           <router-link to="/initialChats" class="nav-link">消息</router-link>
           <router-link to="/shoppingCar" class="nav-link">购物车</router-link>
           <router-link to="/buyAndSoldOrders" class="nav-link">订单</router-link>
-          <router-link to="/homePage" class="nav-link">个人中心</router-link>
+          <div v-if="userInfo.id !== 0">
+            <router-link to="/homePage" class="nav-link">个人中心</router-link>
+          </div>
+          <div v-if="userInfo.id === 0">
+            <router-link to="/login" class="nav-link">登录</router-link>
+          </div>
+
         </div>
       </el-header>
 

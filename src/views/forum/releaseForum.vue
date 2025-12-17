@@ -13,6 +13,7 @@ const formData = reactive({
   title: '',
   label: '',
   classify: '',
+  postClassify: '',
   summary: '',
   content: '',
   cover_avatar: null,
@@ -35,7 +36,7 @@ const getLabels = async () => {
       }
     });
     if (response.data.code === 1) {
-      topics.value = response.data.data;
+      label.value = response.data.data;
     } else {
       ElMessage.error(response.data.msg);
     }
@@ -43,48 +44,147 @@ const getLabels = async () => {
     ElMessage.error('获取话题列表失败，请重试');
   }
 };
-// 子分类获取
-const postClassifies = ref([
 
-])
-const getPostClassifies = async () => {
+// 话题选择按钮位置
+const labelButtonRef = ref(null);
+const toggleLabelBubble = () => {
+  labelBubbleVisible.value = !labelBubbleVisible.value;
+  // 关闭其他气泡
+  classifyBubbleVisible.value = false;
+  postClassifiesBubbleVisible.value = false;
+};
+const closeLabelBubble = () => {
+  labelBubbleVisible.value = false;
+};
+
+// 选择话题 - 修改为最多选择1个
+const selectLabel = (selectedLabel) => {
+  if (formData.label === selectedLabel.name) {
+    ElMessage.warning('该话题已选择');
+    return;
+  }
+  formData.label = selectedLabel.name;
+  // 选择后关闭气泡
+  closeLabelBubble();
+};
+
+// 移除话题
+const removeLabel = () => {
+  formData.label = '';
+};
+
+// 学科获取
+const classifyBubbleVisible = ref(false);
+const classifyOptions = ref([]);
+const getClassifyApi = '/api/getPostClassifies';
+const getClassify = async () => {
   try {
-    const response = await axios.get(postClassifiesApi, {
+    const response = await axios.get(getClassifyApi, {
       headers: {
         'token': JWT_TOKEN,
         'Content-Type': 'application/x-www-form-urlencoded'
       }
     });
     if (response.data.code === 1) {
-      postClassifies.value = response.data.data;
+      classifyOptions.value = response.data.data;
     } else {
       ElMessage.error(response.data.msg);
     }
   } catch (error) {
-    ElMessage.error('获取帖子分类失败，请重试');
+    ElMessage.error('获取学科列表失败，请重试');
   }
 };
 
-// 话题选择按钮位置
-const labelButtonRef = ref(null);
-const openLabelBubble = () => {
-  labelBubbleVisible.value = true;
-};
-const closeLabelBubble = () => {
+// 学科选择按钮位置
+const classifyButtonRef = ref(null);
+const toggleClassifyBubble = () => {
+  classifyBubbleVisible.value = !classifyBubbleVisible.value;
+  // 关闭其他气泡
   labelBubbleVisible.value = false;
+  postClassifiesBubbleVisible.value = false;
+};
+const closeClassifyBubble = () => {
+  classifyBubbleVisible.value = false;
 };
 
-// 选择话题
-const selectLabel = (label) => {
-  if (formData.label.includes(label.name)) {
-    ElMessage.warning('该话题已选择');
+// 选择学科 - 最多选择1个
+const selectClassify = (selectedClassify) => {
+  if (formData.classify === selectedClassify.name) {
+    ElMessage.warning('该学科已选择');
     return;
   }
-  if (formData.label.length >= 5) {
-    ElMessage.warning('最多选择5个话题');
+  formData.classify = selectedClassify.name;
+  // 选择学科后获取子分类
+  getPostClassifies();
+  // 选择后关闭气泡
+  closeClassifyBubble();
+};
+
+// 移除学科
+const removeClassify = () => {
+  formData.classify = '';
+  formData.postClassify = ''; // 清除子分类
+};
+
+// 子分类获取
+const postClassifiesBubbleVisible = ref(false);
+const postClassifiesOptions = ref([]);
+const getPostClassifiesApi = '/api/getPostClassifies';
+const getPostClassifies = async () => {
+  if (!formData.classify) {
+    postClassifiesOptions.value = [];
     return;
   }
-  formData.label.push(label.name);
+  try {
+    const response = await axios.get(getPostClassifiesApi, {
+      headers: {
+        'token': JWT_TOKEN,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }, 
+      params: {
+        classify: formData.classify
+      }
+    });
+    if (response.data.code === 1) {
+      postClassifiesOptions.value = response.data.data;
+    } else {
+      ElMessage.error(response.data.msg);
+    }
+  } catch (error) {
+    ElMessage.error('获取子分类列表失败，请重试');
+  }
+};
+
+// 子分类选择按钮位置
+const postClassifiesButtonRef = ref(null);
+const togglePostClassifiesBubble = () => {
+  if (!formData.classify) {
+    ElMessage.warning('请先选择学科');
+    return;
+  }
+  postClassifiesBubbleVisible.value = !postClassifiesBubbleVisible.value;
+  // 关闭其他气泡
+  labelBubbleVisible.value = false;
+  classifyBubbleVisible.value = false;
+};
+const closePostClassifiesBubble = () => {
+  postClassifiesBubbleVisible.value = false;
+};
+
+// 选择子分类 - 最多选择1个
+const selectPostClassify = (selectedPostClassify) => {
+  if (formData.postClassify === selectedPostClassify.name) {
+    ElMessage.warning('该子分类已选择');
+    return;
+  }
+  formData.postClassify = selectedPostClassify.name;
+  // 选择后关闭气泡
+  closePostClassifiesBubble();
+};
+
+// 移除子分类
+const removePostClassify = () => {
+  formData.postClassify = '';
 };
 
 const URL = window.URL || window.webkitURL;
@@ -317,56 +417,172 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- 话题选择 -->
+                  <!-- 话题、学科、子分类选择 - 在同一行显示 -->
       <div class="form-section">
-        <label class="section-label">选择话题</label>
-        <div class="topic-section">
-          <div 
-            ref="labelButtonRef"
-            class="topic-selector" 
-            @click="openLabelBubble"
-          >
-            <span class="topic-display" v-if="formData.label.length === 0">
-              请选择话题
-            </span>
-            <span class="topic-display" v-else v-for="label in formData.label">
-              #{{ label }}
-            </span>
-            <svg class="topic-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none">
-              <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-          </div>
-
-          <!-- 话题气泡弹窗 -->
-          <div 
-            v-if="labelBubbleVisible"
-            class="topic-bubble"
-            @click.stop
-          >
-            <div class="bubble-content">
-              <div class="bubble-header">
-                <span class="bubble-title">选择话题</span>
-                <button class="bubble-close" @click="closeLabelBubble">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                    <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
-                </button>
+        <label class="section-label">分类选择</label>
+        <div class="category-row">
+          <!-- 话题选择 -->
+          <div class="category-item">
+            <label class="category-label">话题</label>
+            <div class="topic-section">
+              <div 
+                ref="labelButtonRef"
+                class="topic-selector" 
+                @click="toggleLabelBubble"
+                :class="{ active: labelBubbleVisible }"
+              >
+                <span class="topic-display" v-if="!formData.label">
+                  请选择话题
+                </span>
+                <span class="topic-display" v-else>
+                  #{{ formData.label }}
+                </span>
+                <svg class="topic-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" :style="{ transform: labelBubbleVisible ? 'rotate(180deg)' : 'rotate(0deg)' }">
+                  <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
               </div>
-              <div class="topic-grid">
-                <div 
-                  v-for="label in label" 
-                  :key="label.id"
-                  class="topic-option"
-                  @click="selectLabel(label)"
-                >
-                  #{{ label.name }}
+
+              <!-- 话题气泡弹窗 -->
+              <div 
+                v-if="labelBubbleVisible"
+                class="topic-bubble"
+                @click.stop
+              >
+                <div class="bubble-content">
+                  <div class="bubble-header">
+                    <span class="bubble-title">选择话题</span>
+                    <button class="bubble-close" @click="closeLabelBubble">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                        <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                      </svg>
+                    </button>
+                  </div>
+                  <div class="topic-grid">
+                    <div 
+                      v-for="labelItem in label" 
+                      :key="labelItem.id"
+                      class="topic-option"
+                      @click="selectLabel(labelItem)"
+                    >
+                      #{{ labelItem.name }}
+                    </div>
+                  </div>
                 </div>
+                <div class="bubble-arrow"></div>
               </div>
             </div>
-            <div class="bubble-arrow"></div>
+            <button v-if="formData.label" class="remove-btn" @click="removeLabel">×</button>
+          </div>
+
+          <!-- 学科选择 -->
+          <div class="category-item">
+            <label class="category-label">学科</label>
+            <div class="topic-section">
+              <div 
+                ref="classifyButtonRef"
+                class="topic-selector" 
+                @click="toggleClassifyBubble"
+                :class="{ active: classifyBubbleVisible }"
+              >
+                <span class="topic-display" v-if="!formData.classify">
+                  请选择学科
+                </span>
+                <span class="topic-display" v-else>
+                  {{ formData.classify }}
+                </span>
+                <svg class="topic-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" :style="{ transform: classifyBubbleVisible ? 'rotate(180deg)' : 'rotate(0deg)' }">
+                  <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+              </div>
+
+              <!-- 学科气泡弹窗 -->
+              <div 
+                v-if="classifyBubbleVisible"
+                class="topic-bubble"
+                @click.stop
+              >
+                <div class="bubble-content">
+                  <div class="bubble-header">
+                    <span class="bubble-title">选择学科</span>
+                    <button class="bubble-close" @click="closeClassifyBubble">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                        <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                      </svg>
+                    </button>
+                  </div>
+                  <div class="topic-grid">
+                    <div 
+                      v-for="classifyItem in classifyOptions" 
+                      :key="classifyItem.id"
+                      class="topic-option"
+                      @click="selectClassify(classifyItem)"
+                    >
+                      {{ classifyItem.name }}
+                    </div>
+                  </div>
+                </div>
+                <div class="bubble-arrow"></div>
+              </div>
+            </div>
+            <button v-if="formData.classify" class="remove-btn" @click="removeClassify">×</button>
+          </div>
+
+          <!-- 子分类选择 -->
+          <div class="category-item">
+            <label class="category-label">子分类</label>
+            <div class="topic-section">
+              <div 
+                ref="postClassifiesButtonRef"
+                class="topic-selector" 
+                @click="togglePostClassifiesBubble"
+                :class="{ active: postClassifiesBubbleVisible, disabled: !formData.classify }"
+              >
+                <span class="topic-display" v-if="!formData.postClassify">
+                  {{ formData.classify ? '请选择子分类' : '请先选择学科' }}
+                </span>
+                <span class="topic-display" v-else>
+                  {{ formData.postClassify }}
+                </span>
+                <svg class="topic-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" :style="{ transform: postClassifiesBubbleVisible ? 'rotate(180deg)' : 'rotate(0deg)' }">
+                  <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+              </div>
+
+              <!-- 子分类气泡弹窗 -->
+              <div 
+                v-if="postClassifiesBubbleVisible"
+                class="topic-bubble"
+                @click.stop
+              >
+                <div class="bubble-content">
+                  <div class="bubble-header">
+                    <span class="bubble-title">选择子分类</span>
+                    <button class="bubble-close" @click="closePostClassifiesBubble">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                        <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                      </svg>
+                    </button>
+                  </div>
+                  <div class="topic-grid">
+                    <div 
+                      v-for="postClassifyItem in postClassifiesOptions" 
+                      :key="postClassifyItem.id"
+                      class="topic-option"
+                      @click="selectPostClassify(postClassifyItem)"
+                    >
+                      {{ postClassifyItem.name }}
+                    </div>
+                  </div>
+                </div>
+                <div class="bubble-arrow"></div>
+              </div>
+            </div>
+            <button v-if="formData.postClassify" class="remove-btn" @click="removePostClassify">×</button>
           </div>
         </div>
       </div>
+
+      <!-- 帖子摘要 -->
 
       <!-- 帖子摘要 -->
       <div class="form-section">
@@ -845,6 +1061,186 @@ onMounted(() => {
   margin-bottom: 12px;
 }
 
+/* 分类选择器在同一行显示 */
+.category-row {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.category-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.category-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.topic-section {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.topic-selector {
+  flex: 1;
+  border: 1px solid #dcdfe6;
+  border-radius: 6px;
+  padding: 8px 12px;
+  cursor: pointer;
+  background: white;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 40px;
+}
+
+.topic-selector:hover {
+  border-color: #409eff;
+}
+
+.topic-selector.disabled {
+  background-color: #f5f7fa;
+  color: #c0c4cc;
+  cursor: not-allowed;
+}
+
+.topic-display {
+  font-size: 14px;
+  color: #606266;
+}
+
+.topic-selector.active {
+  border-color: #42b983;
+  box-shadow: 0 0 0 3px rgba(66, 185, 131, 0.1);
+}
+
+.topic-selector.active .topic-arrow {
+  color: #42b983;
+  transform: rotate(180deg);
+}
+
+.topic-arrow {
+  color: #c0c4cc;
+  transition: all 0.3s ease;
+}
+
+.topic-selector:hover .topic-arrow {
+  color: #409eff;
+}
+
+.remove-btn {
+  background: #f56c6c;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.3s;
+}
+
+.remove-btn:hover {
+  background: #f78989;
+}
+
+/* 气泡弹窗样式 */
+.topic-bubble {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 1000;
+  margin-top: 8px;
+  min-width: 200px;
+}
+
+.bubble-content {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+}
+
+.bubble-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid #f0f0f0;
+  background: #fafafa;
+}
+
+.bubble-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+.bubble-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  color: #666;
+  transition: background 0.3s;
+}
+
+.bubble-close:hover {
+  background: #f0f0f0;
+}
+
+.topic-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 8px;
+  padding: 12px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.topic-option {
+  padding: 8px 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  text-align: center;
+  transition: all 0.3s;
+  background: white;
+}
+
+.topic-option:hover {
+  border-color: #409eff;
+  background: #ecf5ff;
+  color: #409eff;
+}
+
+.bubble-arrow {
+  position: absolute;
+  top: -6px;
+  left: 20px;
+  width: 12px;
+  height: 12px;
+  background: white;
+  border-left: 1px solid #e0e0e0;
+  border-top: 1px solid #e0e0e0;
+  transform: rotate(45deg);
+}
+
 .input-container {
   width: 100%;
 }
@@ -885,120 +1281,6 @@ onMounted(() => {
 
 .content-input {
   min-height: 250px;
-}
-
-/* 话题选择器优化 */
-.topic-section {
-  position: relative;
-}
-
-.topic-selector {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 20px;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
-  cursor: pointer;
-  background: white;
-  transition: all 0.3s ease;
-  font-size: 16px;
-}
-
-.topic-selector:hover {
-  border-color: #42b983;
-}
-
-.topic-display {
-  color: #666;
-  font-weight: 500;
-}
-
-.topic-display:not(:empty) {
-  color: #42b983;
-  font-weight: 600;
-}
-
-.topic-arrow {
-  color: #999;
-  transition: transform 0.3s ease;
-}
-
-.topic-selector:hover .topic-arrow {
-  color: #42b983;
-}
-
-/* 话题气泡弹窗优化 */
-.topic-bubble {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  margin-top: 8px;
-  z-index: 1000;
-}
-
-.bubble-content {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-  padding: 20px;
-  border: 1px solid #e0e0e0;
-}
-
-.bubble-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.bubble-title {
-  font-weight: 600;
-  color: #333;
-  font-size: 16px;
-}
-
-.bubble-close {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
-  color: #999;
-  transition: all 0.3s ease;
-}
-
-.bubble-close:hover {
-  background: #f5f5f5;
-  color: #333;
-}
-
-.topic-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
-}
-
-.topic-option {
-  padding: 12px 16px;
-  border: 1px solid #e0e0e0;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  text-align: center;
-  font-size: 14px;
-  font-weight: 500;
-  color: #666;
-  background: #f8f9fa;
-}
-
-.topic-option:hover {
-  border-color: #42b983;
-  background: #42b983;
-  color: white;
 }
 
 /* 文件上传区域 */
@@ -1115,6 +1397,15 @@ onMounted(() => {
 
 /* 响应式设计 */
 @media (max-width: 768px) {
+  .category-row {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .category-item {
+    width: 100%;
+  }
+  
   .upload-container {
     flex-direction: column;
   }
