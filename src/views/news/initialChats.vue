@@ -159,11 +159,11 @@ const handleWebSocketMessage = (messageData) => {
     case 'friend':
       handleFriendMessage(messageData)
       break
-    case 'online':
-      handleOnlineMessage(messageData)
-      break
     case 'status_change':
-      handleStatusChangeMessage(messageData)
+      handleOnlineStatus(messageData)
+      break
+    case 'online':
+      handleAllOnlineStatus(messageData)
       break
     case 'message':
       handleRealtimeMessage(messageData)
@@ -173,14 +173,27 @@ const handleWebSocketMessage = (messageData) => {
   }
 }
 
-// 最近聊天
-const recentChats = reactive({
-  List: []
-})
-
-// 好友列表数据
-const focusFriendDatas = reactive({
-  List: []
+const chatMessage = reactive({
+  recentChatsList: [
+    { id: 1,
+      name: '用户1',
+      avatar: 'https://example.com/avatar1.jpg',
+      content: '你好',
+      sendTime: '2023-10-10 10:00:00',
+      isRead: false,
+      messages: [
+        {
+          id: 1,
+          sender: 'friend',
+          type: 'message',
+          content: '你好',
+          time: '2023-10-10 10:00:00'
+        }
+      ],
+      isOnline: false
+    }
+  ],
+  focusFriendList: []
 })
 
 // 分组数据
@@ -188,12 +201,12 @@ const friendGroups = reactive([
   {
     id: 1,
     name: '最近消息',
-    count: computed(() => recentChats.List.length),
+    count: computed(() => chatMessage.recentChatsList.length),
   },
   {
     id: 2,
     name: '好友消息',
-    count: computed(() => focusFriendDatas.List.length),
+    count: computed(() => chatMessage.focusFriendList.length),
   },
 ])
 
@@ -201,14 +214,15 @@ const friendGroups = reactive([
 const handleFriendMessage = (messageData) => {
     if(messageData.list && Array.isArray(messageData.list)) {
       messageData.list.forEach(chat => {
-        recentChats.List.push({
+        chatMessage.recentChatsList.push({
           avatar: chat.avatar,
           name: chat.name,
           isRead: chat.isRead,
           id: chat.id,
-          isOnline: chat.isOnline,
+          isOnline: false,
           content: chat.content,
           sendTime: chat.sendTime,
+          messages: []
         })
       })
     }
@@ -219,14 +233,15 @@ const handleFriendMessage = (messageData) => {
 const handleFocusFriendMessage = (messageData) => {
     if(messageData.list && Array.isArray(messageData.list)) {
       messageData.list.forEach(friend => {
-        focusFriendDatas.List.push({
+        chatMessage.focusFriendList.push({
           avatar: friend.avatar,
           name: friend.name,
           isRead: friend.isRead,
           id: friend.id,
-          isOnline: friend.isOnline,
+          isOnline: false,
           content: friend.content,
           sendTime: friend.sendTime,
+          messages: []
         })
       })
     }
@@ -235,84 +250,158 @@ const handleFocusFriendMessage = (messageData) => {
 // 判断展开状态下渲染的好友列表
 const selectFriendGroup = (groupId) => {
   if(groupId === 1) {
-    return recentChats.List
+    return chatMessage.recentChatsList
   } else if(groupId === 2) {
-    return focusFriendDatas.List
+    return chatMessage.focusFriendList
   }
 }
+
+// 改变好友状态（仅限已经存在的好友）
+const handleOnlineStatus = (messageData) => {
+  if(chatMessage.recentChatsList || chatMessage.focusFriendList) {
+    const changeFriendInRecent = chatMessage.recentChatsList.find(friend => friend.id === messageData.id)
+    if(changeFriendInRecent) {
+      changeFriendInRecent.isOnline = messageData.is_online
+    }
+    const changeFriendInFocus = chatMessage.focusFriendList.find(friend => friend.id === messageData.id)
+    if(changeFriendInFocus) {
+      changeFriendInFocus.isOnline = messageData.is_online
+    }
+  }
+}
+
+// 处理所有好友状态
+const handleAllOnlineStatus = (messageData) => {
+  if(chatMessage.recentChatsList || chatMessage.focusFriendList) {
+    for(const online of messageData.list) {
+      const changeFriendInRecent = chatMessage.recentChatsList.find(friend => friend.id === online)
+      if(changeFriendInRecent) {
+        changeFriendInRecent.isOnline = true
+      }
+      const changeFriendInFocus = chatMessage.focusFriendList.find(friend => friend.id === online)
+      if(changeFriendInFocus) {
+        changeFriendInFocus.isOnline = true
+      }
+    }
+  }
+}
+
+// 处理实时消息
+const handleRealtimeMessage = (messageData) => {
+  console.log('处理实时消息:', messageData)
+
+  const fromUserId = messageData.sender_id
+  const messageContent = messageData.message.content
+  const senderName = messageData.sender_name || `用户${fromUserId}`
+
+  // 查找或创建好友
+  let friend = chatMessage.recentChatsList.find(item => item.id === fromUserId) || chatMessage.focusFriendList.find(item => item.id === fromUserId)
+  console.log('friend:', friend)
+  // if (!friend) {
+  //   friend = {
+  //     id: fromUserId,
+  //     name: senderName,
+  //     avatar: messageData.sender_avatar || '',
+  //     content: messageContent,
+  //     sendTime: new Date().toLocaleString(),
+  //     isRead: false,
+  //     messages: [],
+  //     isOnline: isOnline(fromUserId)
+  //   }
+  //   focusFriendDatas.List.unshift(friend)
+  // }
+
+  // 添加消息
+  const newMessage = {
+    id: messageData.message.id,
+    sender: 'friend',
+    type: messageData.message.type,
+    content: messageContent,
+    time: messageData.message.sendTime || new Date().toLocaleString()
+  }
+
+  // 检查是否已存在相同ID的消息（避免重复添加）
+  const existingMessageIndex = friend.messages.findIndex(msg => msg.id === newMessage.id)
+  if (existingMessageIndex === -1) {
+    // 按时间顺序插入消息
+    const insertIndex = friend.messages.findIndex(msg => 
+      new Date(msg.time || msg.sendTime) > new Date(newMessage.time)
+    )
+    
+    if (insertIndex === -1) {
+      friend.messages.push(newMessage)
+    } else {
+      friend.messages.splice(insertIndex, 0, newMessage)
+    }
+  }
+  // 更新最后一条消息内容
+  friend.content = messageContent
+  friend.sendTime = new Date().toLocaleString()
+  friend.isRead = activeFriend.value?.id === fromUserId
+
+  // 如果当前正在与发送者聊天，滚动到底部
+  if (activeFriend.value?.id === fromUserId) {
+    scrollToBottom()
+  } else {
+    // 显示通知并增加未读计数
+    // showNewMessageNotification(fromUserId, senderName, messageContent)
+    // addUnreadMessage(fromUserId)
+  }
+
+  // console.log('消息已添加到聊天记录')
+}
+
+// 选择好友
+const selectFriend = async (friend) => {
+  friend.isRead = true
+  activeFriend.value = friend
+
+  // 清除该好友的未读消息
+  clearUnreadMessages(friend.id)
+
+  // 获取好友聊天记录
+  getFriendData(friend.id)
+
+  scrollToBottom()
+}
+
+// 获取好友聊天记录 - 确保使用正确的请求配置
+const friendsDataApi = '/api/talk/open'
+const getFriendData = async (friendId) => {
+  try {
+    const response = await axios.get(friendsDataApi, {
+      params: { 
+        friendId: friendId 
+      },
+      headers: {
+        'token': JWT_TOKEN,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+    })
+    if (response.data.code === 1 && response.data.data) {
+      const friend = chatMessage.focusFriendList.find(item => item.id === friendId)
+      if(friend) {
+        friend.messages = response.data.data.message
+      } else {
+        const friendInRecent = chatMessage.recentChatsList.find(item => item.id === friendId)
+        if(friendInRecent) {
+          friendInRecent.messages = response.data.data.message
+        }
+      }
+      console.log('好友聊天记录:', friend.messages)
+    } else {
+      console.error('获取聊天记录失败:', response.data.msg)
+    }
+  } catch (error) {
+    console.error('获取聊天记录失败:', error)
+  }
+}
+
 
 // 处理在线状态消息
 const onlineFriends = reactive({
   list: []
 })
-
-const handleOnlineMessage = (messageData) => {
-  if (messageData.list && Array.isArray(messageData.list)) {
-    onlineFriends.list = messageData.list
-    console.log('更新在线好友:', onlineFriends.list)
-    
-    // 更新好友列表中的在线状态
-    focusFriendDatas.List.forEach(friend => {
-      friend.isOnline = onlineFriends.list.includes(friend.id)
-    })
-  }
-}
-
-// 处理状态变化消息
-const handleStatusChangeMessage = (statusData) => {
-  const { id, is_online, name, avatar } = statusData
-  console.log(`好友状态变化: ${name} ${is_online ? '上线' : '下线'}`)
-  
-  // 更新在线好友列表
-  if (is_online) {
-    if (!onlineFriends.list.includes(id)) {
-      onlineFriends.list.push(id)
-    }
-  } else {
-    const index = onlineFriends.list.indexOf(id)
-    if (index > -1) {
-      onlineFriends.list.splice(index, 1)
-    }
-  }
-  
-  // 更新好友列表中的在线状态
-  const friend = focusFriendDatas.List.find(item => item.id === id)
-  if (friend) {
-    friend.isOnline = is_online
-  } else {
-    // 如果好友不在列表中，添加到列表
-    focusFriendDatas.List.unshift({
-      id,
-      name: name || `用户${id}`,
-      avatar: avatar || '',
-      content: '',
-      sendTime: new Date().toLocaleString(),
-      isRead: false,
-      messages: [],
-      isOnline: is_online
-    })
-  }
-  
-  // 显示状态通知
-  showStatusNotification(id, name || `用户${id}`, is_online)
-}
-
-// 显示状态通知
-const showStatusNotification = (friendId, friendName, isOnline) => {
-  ElNotification({
-    title: '好友状态更新',
-    message: `${friendName} ${isOnline ? '上线了' : '下线了'}`,
-    type: isOnline ? 'success' : 'warning',
-    duration: 3000,
-    onClick: () => {
-      // 点击通知时打开与该好友的聊天
-      const friend = focusFriendDatas.List.find(item => item.id === friendId)
-      if (friend) {
-        selectFriend(friend)
-      }
-    }
-  })
-}
 
 // 判断是否在线
 const isOnline = (friendId) => {
@@ -322,14 +411,14 @@ const isOnline = (friendId) => {
 // 未读消息处理
 const unreadMessages = reactive({})
 
-// 添加未读消息
-const addUnreadMessage = (friendId) => {
-  if (!unreadMessages[friendId]) {
-    unreadMessages[friendId] = 0
-  }
-  unreadMessages[friendId]++
-  updateUnreadBadges()
-}
+// // 添加未读消息
+// const addUnreadMessage = (friendId) => {
+//   if (!unreadMessages[friendId]) {
+//     unreadMessages[friendId] = 0
+//   }
+//   unreadMessages[friendId]++
+//   updateUnreadBadges()
+// }
 
 // 清除未读消息
 const clearUnreadMessages = (friendId) => {
@@ -345,112 +434,26 @@ const updateUnreadBadges = () => {
   console.log('未读消息更新:', unreadMessages)
 }
 
-// 处理实时消息
-const handleRealtimeMessage = (messageData) => {
-  console.log('处理实时消息:', messageData)
-
-  const fromUserId = messageData.sender_id
-  const messageContent = messageData.message?.content || messageData.content
-  const senderName = messageData.sender_name || `用户${fromUserId}`
-
-  // 查找或创建好友
-  let friend = focusFriendDatas.List.find(item => item.id === fromUserId)
-  if (!friend) {
-    friend = {
-      id: fromUserId,
-      name: senderName,
-      avatar: messageData.sender_avatar || '',
-      content: messageContent,
-      sendTime: new Date().toLocaleString(),
-      isRead: false,
-      messages: [],
-      isOnline: isOnline(fromUserId)
-    }
-    focusFriendDatas.List.unshift(friend)
-  }
-
-  // 添加消息
-  const newMessage = {
-    id: Date.now(),
-    sender: 'friend',
-    type: messageContent?.startsWith('http') ? 'image' : 'text',
-    content: messageContent,
-    time: new Date().toLocaleString()
-  }
-
-  if (!friend.messages) {
-    friend.messages = []
-  }
-  friend.messages.push(newMessage)
-
-  // 更新最后一条消息内容
-  friend.content = messageContent
-  friend.sendTime = new Date().toLocaleString()
-  friend.isRead = activeFriend.value?.id === fromUserId
-
-  // 如果当前正在与发送者聊天，滚动到底部
-  if (activeFriend.value?.id === fromUserId) {
-    scrollToBottom()
-  } else {
-    // 显示通知并增加未读计数
-    showNewMessageNotification(fromUserId, senderName, messageContent)
-    addUnreadMessage(fromUserId)
-  }
-
-  console.log('消息已添加到聊天记录')
-}
-
-// 显示新消息通知
-const showNewMessageNotification = (fromUserId, fromUserName, content) => {
-  ElNotification({
-    title: `新消息来自 ${fromUserName}`,
-    message: content.length > 50 ? content.substring(0, 50) + '...' : content,
-    type: 'info',
-    duration: 5000,
-    onClick: () => {
-      // 点击通知时打开与该好友的聊天
-      const friend = focusFriendDatas.List.find(item => item.id === fromUserId)
-      if (friend) {
-        selectFriend(friend)
-      }
-    }
-  })
-}
 
 
-// 获取好友聊天记录 - 确保使用正确的请求配置
-const friendsDataApi = '/api/talk/open'
-const getFriendData = async (friendId) => {
-  try {
-    const response = await axios.get(friendsDataApi, {
-      params: { friendId: friendId },
-      headers: {
-        'token': JWT_TOKEN,
-        'Content-Type': 'application/x-www-form-urlencoded'
-      }
-    })
+// // 显示新消息通知
+// const showNewMessageNotification = (fromUserId, fromUserName, content) => {
+//   ElNotification({
+//     title: `新消息来自 ${fromUserName}`,
+//     message: content.length > 50 ? content.substring(0, 50) + '...' : content,
+//     type: 'info',
+//     duration: 5000,
+//     onClick: () => {
+//       // 点击通知时打开与该好友的聊天
+//       const friend = focusFriendDatas.List.find(item => item.id === fromUserId)
+//       if (friend) {
+//         selectFriend(friend)
+//       }
+//     }
+//   })
+// }
 
-    if (response.data.code === 1 && response.data.data) {
-      console.log('获取聊天记录成功:', response.data.data)
-      return response.data.data.messages || []
-    } else {
-      console.error('获取聊天记录失败:', response.data.msg)
-      return []
-    }
-  } catch (error) {
-    console.error('获取聊天记录失败:', error)
-    return []
-  }
-}
 
-// 匹配好友消息
-const checkMessages = async (friendId) => {
-  const messages = await getFriendData(friendId)
-  return messages.map(msg => ({
-    ...msg,
-    time: new Date(msg.time).toLocaleString()
-  }))
-}
 
 // 响应式数据
 const activeFriend = ref(null)
@@ -481,21 +484,7 @@ const toggleGroup = (groupId) => {
   groupExpanded.value[groupId] = !groupExpanded.value[groupId]
 }
 
-// 选择好友
-const selectFriend = async (friend) => {
-  friend.isRead = true
-  activeFriend.value = friend
 
-  // 清除该好友的未读消息
-  clearUnreadMessages(friend.id)
-
-  // 确保有消息数组
-  if (!friend.messages) {
-    friend.messages = await checkMessages(friend.id)
-  }
-
-  scrollToBottom()
-}
 
 // 搜索好友
 const filteredFriends = computed(() => {
@@ -539,9 +528,6 @@ const sendTextMessage = () => {
     }
 
     if (activeFriend.value) {
-      if (!activeFriend.value.messages) {
-        activeFriend.value.messages = []
-      }
       activeFriend.value.messages.push(message)
       activeFriend.value.content = newMessage.value
       activeFriend.value.sendTime = new Date().toLocaleString()
@@ -701,6 +687,9 @@ watch(() => JWT_TOKEN, (newToken) => {
 })
 
 onMounted(() => {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.close(1000)
+  }
   getUserInfo()
 })
 </script>
@@ -823,7 +812,6 @@ onMounted(() => {
               <img
                   v-if="activeFriend.avatar"
                   :src="activeFriend.avatar"
-                  :alt="activeFriend.name + '的头像'"
                   class="avatar-image"
               >
               <div v-else class="avatar-fallback">
