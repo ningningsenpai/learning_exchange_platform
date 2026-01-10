@@ -19,7 +19,7 @@ const userInfo = reactive({
     avatar: '',
     grade: '',
     major: '',
-    introduction: '',
+    summary: '',
 })
 const getUserInfo = async () => {
   try {
@@ -46,14 +46,14 @@ const address = reactive({
     user_id: 1,
     label: '公司',
     shopping_address: '北京市海淀区中关村大街27号',
-    _default: true,
+    default_flag: true,
 })
 const address1 = reactive({
     id: 2,
     user_id: 1,
     label: '家',
     shopping_address: '北京市海淀区中关村大街28号',
-    _default: false,
+    default_flag: false,
 })
 const addressList = reactive({
     List: []
@@ -75,13 +75,12 @@ const getAddressList = async () => {
     } catch (error) {
         ElMessage.error("获取收货地址失败，请重试")
     }
-    console.log(addressList.List[0]._default)
-    console.log(defaultAddress)
+    console.log(addressList.List)
 }
 // 检索默认收货地址
 const defaultAddress = computed(() => {
     if(addressList.List.length > 0) {
-      const defaultAddress = addressList.List.find(item => item._default) || addressList.List[0]
+      const defaultAddress = addressList.List.find(item => item.default_flag) || addressList.List[0]
       return defaultAddress.shopping_address
     } else {
       return '暂无收货地址'
@@ -112,7 +111,7 @@ const socialInfo1 = reactive({
   id: 1,
   user_name: '张三',
   user_avatar: 'src/static/image.png',
-  introduction: '这个人很懒，什么都没有留下。',
+  summary: '这个人很懒，什么都没有留下。',
   focusCount: 2,
   fansCount: 3
 })
@@ -120,7 +119,7 @@ const socialInfo2 = reactive({
   id: 2,
   user_name: '张三',
   user_avatar: 'src/static/image.png',
-  introduction: '这个人很懒，什么都没有留下。',
+  summary: '这个人很懒，什么都没有留下。',
   focusCount: 4,
   fansCount: 5
 })
@@ -128,23 +127,33 @@ const socialInfo3 = reactive({
   id: 3,
   user_name: '张三',
   user_avatar: 'src/static/image.png',
-  introduction: '这个人很懒，什么都没有留下。',
+  summary: '这个人很懒，什么都没有留下。',
   focusCount: 4,
   fansCount: 6
 })
 const socialInfos = reactive({
-  focusList: [socialInfo1, socialInfo1, socialInfo1, socialInfo1, socialInfo1, socialInfo1, socialInfo1, socialInfo1, socialInfo1, socialInfo1, socialInfo1, socialInfo1],
-  fansList: [socialInfo2, socialInfo2],
-  friendsList: [socialInfo3]
+  focusList: [],
+  fansList: [],
+  friendsList: []
 })
+const getFriendList = (content) => {
+  const friendsIds = new Set(socialInfos.friendsList.map(friend => friend.id));
+  if(content === 'focusShow') {
+    const filteredFocusList = socialInfos.focusList.filter(focus => !friendsIds.has(focus.id));
+    return filteredFocusList;
+  } else if(content === 'fansShow') {
+    const filteredFansList = socialInfos.fansList.filter(fan => !friendsIds.has(fan.id));
+    return filteredFansList;
+  }
+}
 const socialCount = reactive({
-  focusCount: socialInfos.focusList.length + socialInfos.friendsList.length,
-  fansCount: socialInfos.fansList.length + socialInfos.friendsList.length,
-  friendsCount: socialInfos.friendsList.length,
+  focusCount: 0,
+  fansCount: 0,
+  friendsCount: 0
 })
-const focusListApi = '/tempApi/userCenter/getFocusUser'
-const fansListApi = '/tempApi/userCenter/getFansUser'
-const friendsListApi = '/tempApi/userCenter/getFriendsUser'
+const focusListApi = '/api/userCenter/getFocusUser'
+const fansListApi = '/api/userCenter/getFans'
+const friendsListApi = '/api/userCenter/getFriends'
 const getSocialInfo = async () => {
   try {
       const focusResponse = await axios.get(focusListApi, {
@@ -180,6 +189,9 @@ const getSocialInfo = async () => {
       } else {
           ElMessage.error(friendsResponse.data.msg)
       }
+      socialCount.focusCount = socialInfos.focusList.length
+      socialCount.fansCount = socialInfos.fansList.length
+      socialCount.friendsCount = socialInfos.friendsList.length
   } catch (error) {
       ElMessage.error("获取社交信息失败，请重试")
   }
@@ -189,9 +201,9 @@ const getSocialInfo = async () => {
 const lickCounts = ref(0)
 const collectCounts = ref(0)
 const pageViews = ref(0)
-const likeCountsApi = '/tempApi/userCenter/getLikeCounts'
-const collectCountsApi = '/tempApi/userCenter/getCollectCounts'
-const pageViewsApi = '/tempApi/userCenter/getPageViews'
+const likeCountsApi = '/api/userCenter/getLikeCounts'
+const collectCountsApi = '/api/userCenter/getCollectCounts'
+const pageViewsApi = '/api/userCenter/getPageViews'
 const getForumCount = async () => {
     try {
         const likeResponse = await axios.get(likeCountsApi, {
@@ -285,9 +297,9 @@ function getShowPost() {
 }
 // 获取用户发布的帖子数据
 const userPosts = reactive({
-    List: [forumPost1, forumPost1, forumPost1, forumPost1]
+    List: []
 })
-const userPostApi = '/api/getLoginUserPosts'
+const userPostApi = '/api/getPostsByUserId'
 const getUserPost = async () => {
   try {
       const response = await axios.get(userPostApi,{
@@ -307,9 +319,9 @@ const getUserPost = async () => {
 }
 // 获取用户收藏数据
 const userCollects = reactive({
-  List: [forumPost2, forumPost2, forumPost2, forumPost2]
+  List: []
 })
-const getUserCollectsApi = '/api/userCenter/getUserCollects'
+const getUserCollectsApi = '/api/getLoginUserCollectPosts'
 const getUserCollects = async () => {
   try {
     const response = await axios.get(getUserCollectsApi,{
@@ -328,7 +340,7 @@ const getUserCollects = async () => {
   }
 }
 const userDynamics = reactive({
-  List: [forumPost1, forumPost1, forumPost1, forumPost1]
+  List: []
 })
 // 获取用户动态数据
 const dynamicsCount = ref(50)
@@ -370,7 +382,7 @@ function toggleDealDropDown () {
 const forumButtonContent = ref([
   '文章',
   '收藏',
-  '动态'
+  // '动态'
 ])
 const forumDropDown = ref(false)
 function toggleForumDropDown () {
@@ -379,24 +391,9 @@ function toggleForumDropDown () {
 }
 
 // 退出登录
-const logoutApi = '/api/userCenter/logout'
 const logout = async () => {
-  try {
-    const response = await axios.post(logoutApi, {
-      headers: {
-        'token': JWT_TOKEN,
-        'Content-Type': 'application/x-www-form-urlencoded'
-      }
-    })
-    if(response.data.code === 1) {
-      ElMessage.success(response.data.msg)
-      togglePageDisplay('userBaseDataShow')
-    } else {
-      ElMessage.error(response.data.msg)
-    }
-  } catch (error) {
-    ElMessage.error("退出登录失败，请重试")
-  }
+  userStore.clearAuth()
+  router.push('/login')
 }
 
 
@@ -522,10 +519,18 @@ const editForm = reactive({
     username: '',
     grade: '',
     major: '',
-    introduction: '',
+    summary: '',
     avatar: '',
     avatarFile: null
 })
+const resetEditForm = () => {
+    editForm.username = ''
+    editForm.grade = ''
+    editForm.major = ''
+    editForm.summary = ''
+    editForm.avatar = ''
+    editForm.avatarFile = null
+}
 const handleAvatarUpload = (event) => {
     const file = event.target.files[0]
     if (file) {
@@ -572,22 +577,24 @@ const imageUpload = async() => {
     ElMessage.error("上传头像失败，请重试")
   }
 }
-const updateUserInfoApi = '/api/updateUserInfo'
+const updateUserInfoApi = '/api/updateUser'
 const updateUserInfo = async () => {
   console.log(editForm.avatarFile)
-  if(!editForm.avatar &&!editForm.username && !editForm.grade && !editForm.major) {
+  if(!editForm.username && !editForm.grade && !editForm.major) {
       ElMessage.error("请填写完整用户信息")
       return
   }
   try {
-      await imageUpload()
+      if(editForm.avatarFile) {
+        await imageUpload()
+      }
       const response = await axios.put(updateUserInfoApi, {
         id: userInfo.id,
         username: editForm.username,
         avatar: editForm.avatar,
         grade: editForm.grade,
         major: editForm.major,
-        introduction: editForm.introduction,
+        summary: editForm.summary,
       },
       {
         headers: {
@@ -603,7 +610,7 @@ const updateUserInfo = async () => {
           editForm.username = ''
           editForm.grade = ''
           editForm.major = ''
-          editForm.introduction = ''
+          editForm.summary = ''
       } else {
           ElMessage.error(response.data.msg)
       }
@@ -611,6 +618,7 @@ const updateUserInfo = async () => {
       ElMessage.error("修改用户信息失败，请重试")
   }
   getUserInfo()
+  resetEditForm()
 }
 
 
@@ -619,24 +627,27 @@ const changeAddress = reactive({
     id: 0,
     user_id: userInfo.id,
     shopping_address: '',
-    _default: false,
+    default_flag: false,
 })
-// 修改默认收货地址（调用修改收货地址的函数，修改两个地址的_default为false和true）
+// 修改默认收货地址（调用修改收货地址的函数，修改两个地址的is_default为false和true）
 function changeDefaultAddress(address) {
-  const oldDefaultAddress = addressList.List.find(item => item._default)
-  oldDefaultAddress._default = false
-  address._default = true
-  updateAddress(oldDefaultAddress.id, oldDefaultAddress.shopping_address, false)
+  const oldDefaultAddress = addressList.List.find(item => item.default_flag)
+  if(oldDefaultAddress) {
+   oldDefaultAddress.default_flag = false
+   updateAddress(oldDefaultAddress.id, oldDefaultAddress.shopping_address, false)
+  }
+  address.default_flag = true
   updateAddress(address.id, address.shopping_address, true)
 }
 function editAddress(address) {
   changeAddress.id = address.id
   changeAddress.shopping_address = address.shopping_address
+  changeAddress.default_flag = address.default_flag
 }
 function resetAddressForm() {
   changeAddress.id = 0
   changeAddress.shopping_address = ''
-  changeAddress._default = false
+  changeAddress.default_flag = false
 }
 // 确认修改收货地址或者设置为默认地址
 function saveAddress() {
@@ -645,19 +656,21 @@ function saveAddress() {
     return
   }
     if(changeAddress.id !== 0) {
-      updateAddress(changeAddress.id, changeAddress.shopping_address, changeAddress._default)
+      console.log(changeAddress.id, changeAddress.shopping_address, changeAddress.default_flag)
+      updateAddress(changeAddress.id, changeAddress.shopping_address, changeAddress.default_flag)
       const oldDefaultAddress = addressList.List.find(item => item.id === changeAddress.id)
       oldDefaultAddress.shopping_address = changeAddress.shopping_address
     } else {
-      changeAddress._default = true
-      const oldDefaultAddress = addressList.List.find(item => item._default)
+      changeAddress.default_flag = true
+      const oldDefaultAddress = addressList.List.find(item => item.default_flag)
       if(oldDefaultAddress) {
-        oldDefaultAddress._default = false
+        oldDefaultAddress.default_flag = false
         updateAddress(oldDefaultAddress.id, oldDefaultAddress.shopping_address, false)
       }
       changeAddress.id = 100
       addNewAddress()
-      addressList.List.push(changeAddress)
+      // addressList.List.push(changeAddress)
+      getAddressList()
     }
     resetAddressForm()
 }
@@ -676,9 +689,6 @@ function addNewAddress() {
     return
   }
   addNewAddressFunction()
-  const tempAddress = {...changeAddress}
-  addressList.List.push(tempAddress)
-  resetAddressForm()
 }
 // 添加新地址接口
 const addAddressApi = '/api/addShoppingAddress'
@@ -686,7 +696,7 @@ const addNewAddressFunction = async () => {
     try {
         const response = await axios.post(addAddressApi, {
             address: changeAddress.shopping_address,
-            is_default: changeAddress._default,
+            default_flag: changeAddress.default_flag,
         },
         {
             headers: {
@@ -707,13 +717,14 @@ const addNewAddressFunction = async () => {
     }
 }
 // 修改收货地址接口
-const updateAddressApi = '/api/updateShoppingAddress'
+const updateAddressApi = '/api/updateShoppingAddressById'
 const updateAddress = async (addressId, addressDetail, isDefault) => {
+    console.log(addressId, addressDetail, isDefault)
     try {
         const response = await axios.put(updateAddressApi, {
             id: addressId,
-            shopping_address: addressDetail,
-            is_default: isDefault,
+            address: addressDetail,
+            default_flag: isDefault,
         },
         {
             headers: {
@@ -734,10 +745,10 @@ const updateAddress = async (addressId, addressDetail, isDefault) => {
     }
 }
 // 删除收货地址接口
-const deleteAddressApi = '/api/deleteShoppingAddress'
+const deleteAddressApi = '/api/deleteShoppingAddressById'
 const deleteAddressFunction = async (addressId) => {
     try {
-        const response = await axios.delete(deleteAddressApi, {
+        const response = await axios.put(deleteAddressApi, {
             id: addressId,
         },
         {
@@ -756,6 +767,7 @@ const deleteAddressFunction = async (addressId) => {
     } catch (error) {
         ElMessage.error("删除收货地址失败，请重试")
     }
+    getAddressList()
 }
 // 更新收货时间接口
 const updateShoppingTimeApi = '/api/updateDefaultShoppingTime'
@@ -818,32 +830,54 @@ const unfollowUser = async (userId) => {
 
 // 帖子搜索
 const searchKeyword = ref('')
-const searchPostApi = '/api/forum/searchPost'
+const searchPostApi = '/api/getUserPostsById'
 const searchPost = async () => {
-  // try {
-  //   const response = await axios.post(searchPostApi, {
-  //     type: currentPage,
-  //     keyword: searchKeyword.value,
-  //   }, {
-  //     headers: {
-  //       'token': JWT_TOKEN,
-  //       'Content-Type': 'application/x-www-form-urlencoded'
-  //     }
-  // });
-  //   if(response.data.code === 1) {
-  //     if(currentPage === 'postShow') {
-  //       userPosts = response.data.data
-  //     } else if(currentPage === 'userPostShow') {
-  //       userCollects = response.data.data
-  //     } else {
-  //       userDynamics = response.data.data
-  //     }
-  //   } else {
-  //     ElMessage.error(response.data.msg)
-  //   }
-  // } catch (error) {
-  //   ElMessage.error('搜索帖子失败');
-  // }
+  try {
+      const response = await axios.get(searchPostApi, {
+          params: {
+              userId: userInfo.id,
+              collation: 'time',
+              searchKey: searchKeyword.value
+          }, headers: {
+              'token': JWT_TOKEN,
+              'Content-Type': 'application/x-www-form-urlencoded'
+            }
+      })
+      if(response.data.code === 1) {
+        userPosts.List = response.data.data
+      } else {
+          ElMessage.error(response.data.msg)
+      }
+  } catch (error) {
+      ElMessage.error("获取用户发布的帖子失败，请重试")
+  }
+}
+const searchCollectPostApi = '/api/userCenter/searchCollectPosts'
+const searchCollectPost = async () => {
+  try {
+      const response = await axios.get(searchCollectPostApi, {
+          params: {
+              searchKey: searchKeyword.value
+          }, headers: {
+              'token': JWT_TOKEN,
+              'Content-Type': 'application/x-www-form-urlencoded'
+            }
+      })
+      if(response.data.code === 1) {
+        userCollects.List = response.data.data
+      } else {
+          ElMessage.error(response.data.msg)
+      }
+  } catch (error) {
+      ElMessage.error("获取用户发布的帖子失败，请重试")
+  }
+}
+const getSearchBtn = () => {
+  if(currentPage.value === 'postShow') {
+    searchPost()
+  } else if(currentPage.value === 'collectPostShow') {
+    searchCollectPost()
+  }
 }
 
 
@@ -1158,14 +1192,30 @@ const goToBookDetail = (bookId) => {
   })
 }
 
-
+// 帖子浏览量增加
+const incPageViewsByIdApi = '/api/incPageViewsById'
+const incPageViewsById = async (forumId) => {
+  try {
+    await axios.post(incPageViewsByIdApi, {
+      id: forumId
+    }, {
+      headers: {
+        'token': JWT_TOKEN,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+    });
+  } catch (error) {
+    ElMessage.error('增加页面访问量失败');
+  }
+}
 
 // 跳转帖子详情页
 const goToPostDetail = (postId) => {
+  incPageViewsById(postId);
   router.push({
     path: '/forumDetail',
     query: {
-      postId: postId
+      forumId: postId
     }
   })
 }
@@ -1173,6 +1223,11 @@ const goToPostDetail = (postId) => {
 onMounted(() => {
   getUserInfo()
   getAddressList()
+  getSocialInfo()
+  getForumCount()
+  getUserPost()
+  getUserCollects()
+  // getUserDynamics()
 })
 
 </script>
@@ -1245,9 +1300,9 @@ onMounted(() => {
               v-for="(item, index) in forumButtonContent" 
               :key="index" 
               class="dropdown-item"
-              @click="togglePageDisplay(item === '文章' ? 'postShow' : item === '收藏' ? 'collectPostShow' : 'dynamicShow')"
+              @click="togglePageDisplay(item === '文章' ? 'postShow' : 'collectPostShow')"
             >
-              <span class="dropdown-icon">{{ index === 0 ? '📝' : index === 1 ? '❤️' : '📱' }}</span>
+              <span class="dropdown-icon">{{ index === 0 ? '📝' : '❤️' }}</span>
               {{ item }}
              </button>
           </div>
@@ -1276,7 +1331,7 @@ onMounted(() => {
           <h3>个人信息 <span class="edit-hint" @click="openUserInfoModal">(点击修改)</span></h3>
           <p>年级：{{ userInfo.grade }}</p>
           <p>专业：{{ userInfo.major }}</p>
-          <p>个人简介：{{ userInfo.introduction }}</p>
+          <p>个人简介：{{ userInfo.summary }}</p>
         </div>
         <div class="address-show" @click="openAddressModal">
           <h3>收货地址 <span class="edit-hint">(点击管理)</span></h3>
@@ -1298,7 +1353,7 @@ onMounted(() => {
             <img :src="item.avatar" alt="" class="social-avatar"/>
             <div class="friend-info">
               <p class="social-name">{{ item.user_name }}</p>
-              <p class="social-intro">{{ item.introduction }}</p>
+              <p class="social-intro">{{ item.summary }}</p>
             </div>
             <button class="friend-btn mutual-follow" @click="unfollowUser(item.id)">相互关注</button>
           </div>
@@ -1307,7 +1362,7 @@ onMounted(() => {
         <!-- 关注列表 -->
         <div 
           v-if="currentPage === 'focusShow'"
-          v-for="(item, index) in socialInfos.focusList" 
+          v-for="(item, index) in getFriendList('focusShow')" 
           :key="index" 
           class="friend-item" 
         > 
@@ -1315,7 +1370,7 @@ onMounted(() => {
             <img :src="item.avatar" alt="" class="social-avatar"/>
             <div class="friend-info">
               <p class="social-name">{{ item.user_name }}</p>
-              <p class="social-intro">{{ item.introduction }}</p>
+              <p class="social-intro">{{ item.summary }}</p>
             </div>
             <button class="friend-btn followed" @click="unfollowUser(item.id)">已关注</button>
           </div>
@@ -1324,7 +1379,7 @@ onMounted(() => {
         <!-- 粉丝列表 -->
         <div 
           v-if="currentPage === 'fansShow'"
-          v-for="(item, index) in socialInfos.fansList" 
+          v-for="(item, index) in getFriendList('fansShow')" 
           :key="index" 
           class="friend-item" 
         > 
@@ -1332,7 +1387,7 @@ onMounted(() => {
             <img :src="item.avatar" alt="" class="social-avatar"/>
             <div class="friend-info">
               <p class="social-name">{{ item.user_name }}</p>
-              <p class="social-intro">{{ item.introduction }}</p>
+              <p class="social-intro">{{ item.summary }}</p>
             </div>
             <button class="friend-btn follow-back" @click="followUser(item.id)">回关</button>
           </div>
@@ -1758,11 +1813,11 @@ onMounted(() => {
                 type="text" 
                 placeholder="搜索帖子标题、内容..." 
                 v-model="searchKeyword"
-                @keyup.enter="searchPost"
+                @keyup.enter="getSearchBtn()"
                 class="forum-search-input"
               >
             </div>
-            <button class="forum-search-btn" @click="searchPost">
+            <button class="forum-search-btn" @click="getSearchBtn()">
               <span class="btn-icon">→</span>
               <span class="btn-text">搜索</span>
             </button>
@@ -1875,7 +1930,7 @@ onMounted(() => {
             <div class="form-group">
               <label>个人简介</label>
               <textarea 
-                v-model="editForm.introduction" 
+                v-model="editForm.summary" 
                 class="form-textarea"
                 placeholder="请输入个人简介"
                 rows="3"
@@ -1924,17 +1979,17 @@ onMounted(() => {
                 v-for="address in addressList.List" 
                 :key="address.id" 
                 class="address-item"
-                :class="{ 'default-address': address._default }"
+                :class="{ 'default_flag-address': address.default_flag }"
               >
                 <div class="address-content">
                   <div class="address-detail">
-                    <span v-if="address._default" class="default-badge">默认</span>
+                    <span v-if="address.default_flag" class="default_flag-badge">默认</span>
                     {{ address.shopping_address }}
                   </div>
                   <div class="address-actions">
                     <button 
-                      v-if="!address._default" 
-                      class="action-btn set-default-btn"
+                      v-if="!address.default_flag" 
+                      class="action-btn set-default_flag-btn"
                       @click="changeDefaultAddress(address)"
                     >
                       设为默认
@@ -1943,7 +1998,7 @@ onMounted(() => {
                       编辑
                     </button>
                     <button 
-                      v-if="!address._default" 
+                      v-if="!address.default_flag" 
                       class="action-btn delete-btn"
                       @click="deleteAddress(address)"
                     >
@@ -2065,15 +2120,21 @@ onMounted(() => {
   display: flex;
   height: 100%;
   width: 100%;
+  min-height: 600px;
+  max-height: 650px;
   padding: 20px;
   background: linear-gradient(135deg, #f1f8e9 0%, #dcedc8 100%);
+  position: relative; /* 添加相对定位作为侧边栏的参考点 */
 }
 
 /* 侧边栏样式 */
 .sider {
   width: 280px;
-  height: 98%;
-  margin: auto 0;
+  height: 95%;
+  max-height: 570px;
+  position: absolute; /* 改为绝对定位，相对于homePage-content */
+  top: 20px; /* 距离顶部20px，与homePage-content的padding一致 */
+  left: 20px; /* 距离左侧20px，与homePage-content的padding一致 */
   background: white;
   border-radius: 12px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
@@ -2081,6 +2142,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 15px;
+  z-index: 100; /* 添加较高的z-index确保在最上层 */
 }
 
 /* 用户信息区域 */
@@ -2119,7 +2181,7 @@ onMounted(() => {
   color: #455a64;
   font-size: 0.8rem;
   font-weight: 500;
-  cursor: default;
+  cursor: default_flag;
   transition: color 0.3s ease;
 }
 
@@ -2143,7 +2205,7 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  cursor: default;
+  cursor: default_flag;
   transition: all 0.3s ease;
 }
 
@@ -2210,7 +2272,7 @@ onMounted(() => {
 }
 
 .logout-btn.moved-down.forum-active {
-  margin-top: 114px; 
+  margin-top: 76px; 
 }
 
 .function-btn-item {
@@ -2337,10 +2399,12 @@ onMounted(() => {
 .main-content {
   flex: 1;
   height: 98%; 
+  min-height: 570px;
   border-radius: 8px;
   margin: auto 0;
-  margin-left: 20px;
+  margin-left: 300px; /* 增加左边距，为绝对定位的侧边栏留出空间 */
   overflow: auto;
+  width: calc(100% - 320px); /* 调整宽度以适应新的布局 */
 }
 
 /* 个人信息区域样式 */
@@ -2589,6 +2653,7 @@ onMounted(() => {
   padding: 20px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   margin-bottom: 20px;
+  /* max-height: 650px; */
 }
 
 .upload-book-header {
@@ -3231,6 +3296,7 @@ onMounted(() => {
   border-radius: 12px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
   height: 100%;
+  max-height: 650px;
   scroll-behavior: smooth;
 }
 
@@ -3848,7 +3914,7 @@ onMounted(() => {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.address-item.default-address {
+.address-item.default_flag-address {
   border-color: #81C784;
   background: #f1f8e9;
 }
@@ -3866,7 +3932,7 @@ onMounted(() => {
   line-height: 1.4;
 }
 
-.default-badge {
+.default_flag-badge {
   background: #81C784;
   color: white;
   padding: 2px 8px;
@@ -3889,12 +3955,12 @@ onMounted(() => {
   transition: all 0.3s ease;
 }
 
-.set-default-btn {
+.set-default_flag-btn {
   background: #81C784;
   color: white;
 }
 
-.set-default-btn:hover {
+.set-default_flag-btn:hover {
   background: #66BB6A;
 }
 

@@ -3,6 +3,10 @@ import { reactive, ref, onMounted } from 'vue';
 import { ElMessage} from 'element-plus';
 import axios from 'axios';
 import { useUserStore } from '@/stores/userStore'
+import { useRouter } from 'vue-router';
+
+// 获取路由实例
+const router = useRouter()
 
 // 获取用户存储实例
 const userStore = useUserStore()
@@ -12,191 +16,62 @@ const JWT_TOKEN = userStore.token
 const formData = reactive({
   title: '',
   label: '',
-  classify: '',
-  postClassify: '',
+  subject: '',
+  sub_classify: '',
   summary: '',
   content: '',
-  cover_avatar: null,
-  type: 0, // 0:原创, 1:转载
-  visible_range: 0, // 0:公开, 1:粉丝可见, 2:好友可见, 3:私人
+  cover_avatar_file: null, // 用于保存文件对象
+  cover_avatar_url: '',    // 用于保存预览URL
+  type: '原创',
+  visible_range: '公开',
 });
 
-// 话题获取
-const labelBubbleVisible = ref(false);
-const label = ref([
-  
+// 分类选项（大类）
+const subjectOptions = ref([
+  '计算机',
+  '文学',
+  '地理',
+  '历史',
+  '数学',
+  '物理',
+  '化学',
+  '生物',
+  '经济',
+  '艺术',
+  '体育',
+  '其他'
 ]);
-const getLabelApi = '/api/getPostLabels';
-const getLabels = async () => {
-  try {
-    const response = await axios.get(getLabelApi, {
-      headers: {
-        'token': JWT_TOKEN,
-        'Content-Type': 'application/x-www-form-urlencoded'
-      }
-    });
-    if (response.data.code === 1) {
-      label.value = response.data.data;
-    } else {
-      ElMessage.error(response.data.msg);
-    }
-  } catch (error) {
-    ElMessage.error('获取话题列表失败，请重试');
-  }
-};
 
-// 话题选择按钮位置
-const labelButtonRef = ref(null);
-const toggleLabelBubble = () => {
-  labelBubbleVisible.value = !labelBubbleVisible.value;
-  // 关闭其他气泡
-  classifyBubbleVisible.value = false;
-  postClassifiesBubbleVisible.value = false;
-};
-const closeLabelBubble = () => {
-  labelBubbleVisible.value = false;
-};
+// 子分类选项
+const subClassifyOptions = reactive({
+  '计算机': ['人工智能', 'Java编程技术', 'Web前端开发', 'Python', '数据科学', '网络安全', '数据库', '操作系统', '算法与数据结构', '软件工程'],
+  '文学': ['小说', '诗歌', '散文', '戏剧', '文学理论', '文学史'],
+  '地理': ['自然地理', '人文地理', '区域地理', '地理信息技术'],
+  '历史': ['中国史', '世界史', '古代史', '近代史', '现代史'],
+  '数学': ['高等数学', '线性代数', '概率统计', '离散数学'],
+  '物理': ['力学', '电磁学', '热学', '光学', '量子物理'],
+  '化学': ['无机化学', '有机化学', '物理化学', '分析化学'],
+  '生物': ['细胞生物学', '遗传学', '生态学', '生物化学'],
+  '经济': ['微观经济学', '宏观经济学', '金融学', '国际贸易'],
+  '艺术': ['绘画', '音乐', '舞蹈', '戏剧', '摄影'],
+  '体育': ['篮球', '足球', '游泳', '田径', '健身'],
+  '其他': ['其他']
+});
 
-// 选择话题 - 修改为最多选择1个
-const selectLabel = (selectedLabel) => {
-  if (formData.label === selectedLabel.name) {
-    ElMessage.warning('该话题已选择');
-    return;
-  }
-  formData.label = selectedLabel.name;
-  // 选择后关闭气泡
-  closeLabelBubble();
-};
+// 话题选项
+const labelOptions = ref(['考试', '笔记', '分享', '讨论', '求助', '资源']);
 
-// 移除话题
-const removeLabel = () => {
-  formData.label = '';
-};
+// 文章类型选项
+const typeOptions = ref(['原创', '转载']);
 
-// 学科获取
-const classifyBubbleVisible = ref(false);
-const classifyOptions = ref([]);
-const getClassifyApi = '/api/getPostClassifies';
-const getClassify = async () => {
-  try {
-    const response = await axios.get(getClassifyApi, {
-      headers: {
-        'token': JWT_TOKEN,
-        'Content-Type': 'application/x-www-form-urlencoded'
-      }
-    });
-    if (response.data.code === 1) {
-      classifyOptions.value = response.data.data;
-    } else {
-      ElMessage.error(response.data.msg);
-    }
-  } catch (error) {
-    ElMessage.error('获取学科列表失败，请重试');
-  }
-};
+// 可见范围选项
+const visibleRangeOptions = ref(['公开', '粉丝可见', '好友可见', '私人']);
 
-// 学科选择按钮位置
-const classifyButtonRef = ref(null);
-const toggleClassifyBubble = () => {
-  classifyBubbleVisible.value = !classifyBubbleVisible.value;
-  // 关闭其他气泡
-  labelBubbleVisible.value = false;
-  postClassifiesBubbleVisible.value = false;
-};
-const closeClassifyBubble = () => {
-  classifyBubbleVisible.value = false;
-};
+// 上传状态
+const isUploading = ref(false);
+const submitChooseVisible = ref(false);
 
-// 选择学科 - 最多选择1个
-const selectClassify = (selectedClassify) => {
-  if (formData.classify === selectedClassify.name) {
-    ElMessage.warning('该学科已选择');
-    return;
-  }
-  formData.classify = selectedClassify.name;
-  // 选择学科后获取子分类
-  getPostClassifies();
-  // 选择后关闭气泡
-  closeClassifyBubble();
-};
-
-// 移除学科
-const removeClassify = () => {
-  formData.classify = '';
-  formData.postClassify = ''; // 清除子分类
-};
-
-// 子分类获取
-const postClassifiesBubbleVisible = ref(false);
-const postClassifiesOptions = ref([]);
-const getPostClassifiesApi = '/api/getPostClassifies';
-const getPostClassifies = async () => {
-  if (!formData.classify) {
-    postClassifiesOptions.value = [];
-    return;
-  }
-  try {
-    const response = await axios.get(getPostClassifiesApi, {
-      headers: {
-        'token': JWT_TOKEN,
-        'Content-Type': 'application/x-www-form-urlencoded'
-      }, 
-      params: {
-        classify: formData.classify
-      }
-    });
-    if (response.data.code === 1) {
-      postClassifiesOptions.value = response.data.data;
-    } else {
-      ElMessage.error(response.data.msg);
-    }
-  } catch (error) {
-    ElMessage.error('获取子分类列表失败，请重试');
-  }
-};
-
-// 子分类选择按钮位置
-const postClassifiesButtonRef = ref(null);
-const togglePostClassifiesBubble = () => {
-  if (!formData.classify) {
-    ElMessage.warning('请先选择学科');
-    return;
-  }
-  postClassifiesBubbleVisible.value = !postClassifiesBubbleVisible.value;
-  // 关闭其他气泡
-  labelBubbleVisible.value = false;
-  classifyBubbleVisible.value = false;
-};
-const closePostClassifiesBubble = () => {
-  postClassifiesBubbleVisible.value = false;
-};
-
-// 选择子分类 - 最多选择1个
-const selectPostClassify = (selectedPostClassify) => {
-  if (formData.postClassify === selectedPostClassify.name) {
-    ElMessage.warning('该子分类已选择');
-    return;
-  }
-  formData.postClassify = selectedPostClassify.name;
-  // 选择后关闭气泡
-  closePostClassifiesBubble();
-};
-
-// 移除子分类
-const removePostClassify = () => {
-  formData.postClassify = '';
-};
-
-const URL = window.URL || window.webkitURL;
-// 格式化文件大小显示
-const formatFileSize = (bytes) => {
-  if (bytes === 0) return '0 Bytes';
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-};
-// 处理封面图片上传
+// 处理封面图片上传 - 仅预览
 const handleCoverImageChange = (event) => {
   const file = event.target.files[0];
   if (file) {
@@ -209,15 +84,24 @@ const handleCoverImageChange = (event) => {
       ElMessage.error('图片大小不能超过5MB');
       return;
     }
-    formData.cover_avatar = file;
+
+    formData.cover_avatar_file = file;
+
+    // 创建预览URL
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      formData.cover_avatar_url = e.target.result;
+    };
+    reader.readAsDataURL(file);
+
     ElMessage.success('封面图片已选择');
   }
 };
-// 清除封面图片并释放URL对象
+
+// 清除封面图片
 const clearCoverImage = () => {
-  if (formData.cover_avatar) {
-    formData.cover_avatar = null;
-  }
+  formData.cover_avatar_file = null;
+  formData.cover_avatar_url = '';
   // 重置文件输入框
   const fileInputs = document.querySelectorAll('.cover-image-input');
   fileInputs.forEach(input => {
@@ -225,48 +109,173 @@ const clearCoverImage = () => {
   });
 };
 
-// 发布帖子选择可见范围和版权信息
-const submitChooseVisible = ref(false);
+// 打开确认弹窗
 const openSubmitChooseVisible = () => {
+  // 验证必填字段
+  const errors = [];
+
+  if (!formData.title.trim()) {
+    errors.push('帖子标题');
+  }
+  if (!formData.content.trim()) {
+    errors.push('帖子内容');
+  }
+  if (!formData.subject) {
+    errors.push('文章分类');
+  }
+  if (!formData.label) {
+    errors.push('文章话题');
+  }
+  if (!formData.type) {
+    errors.push('文章类型');
+  }
+  if (!formData.visible_range) {
+    errors.push('可见范围');
+  }
+
+  if (errors.length > 0) {
+    ElMessage.warning(`请填写以下必填项：${errors.join('、')}`);
+    return;
+  }
+
   submitChooseVisible.value = true;
 };
+
 const closeSubmitChooseVisible = () => {
   submitChooseVisible.value = false;
-  resetFormData();
 };
 
-// 重重表单数据
+// 重置表单数据
 const resetFormData = () => {
   formData.title = '';
-  formData.label = [];
+  formData.label = '';
+  formData.subject = '';
+  formData.sub_classify = '';
   formData.summary = '';
   formData.content = '';
-  formData.cover_avatar = null;
-  formData.type = 0; // 0:原创, 1:转载
-  formData.visible_range = 0; // 0:公开, 1:粉丝可见, 2:好友可见, 3:私人
+  formData.cover_avatar_file = null;
+  formData.cover_avatar_url = '';
+  formData.type = '原创';
+  formData.visible_range = '公开';
+};
+
+// 上传图片到阿里云
+const uploadImageToOSS = async (file) => {
+  if (!file) return '';
+
+  const formDataToUpload = new FormData();
+  formDataToUpload.append('image', file);
+
+  try {
+    const response = await axios.post('/api/upload', formDataToUpload, {
+      headers: {
+        'token': JWT_TOKEN,
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+
+    if (response.data.code === 1) {
+      return response.data.data; // 返回阿里云路径
+    } else {
+      ElMessage.error('图片上传失败: ' + (response.data.msg || '未知错误'));
+      return '';
+    }
+  } catch (error) {
+    console.error('上传图片失败:', error);
+    ElMessage.error('图片上传失败，请稍后重试');
+    return '';
+  }
 };
 
 // 发布帖子
-const releaseForumApi = '/api/releaseForum';
 const releaseForum = async () => {
+  isUploading.value = true;
+
   try {
-    await axios.post(releaseForumApi, formData, {
+    let coverAvatarUrl = '';
+
+    // 1. 如果有封面图片，先上传
+    if (formData.cover_avatar_file) {
+      coverAvatarUrl = await uploadImageToOSS(formData.cover_avatar_file);
+      if (!coverAvatarUrl) {
+        isUploading.value = false;
+        return; // 上传失败，停止发布
+      }
+    }
+
+    // 2. 准备帖子数据
+    const postData = {
+      title: formData.title,
+      summary: formData.summary,
+      content: formData.content,
+      cover_avatar: coverAvatarUrl,
+      label: formData.label,
+      type: formData.type,
+      visible_range: formData.visible_range,
+      subject: formData.subject,
+      sub_classify: formData.sub_classify || ''
+    };
+
+    console.log('准备发布的帖子数据:', postData);
+
+    // 3. 发布帖子 - 根据你的后端，可能需要调整API路径
+    const response = await axios.post('/api/insertPost', postData, {
       headers: {
         'token': JWT_TOKEN,
-        'Content-Type': 'application/json'
-      }
-    })
-    ElMessage.success('发布帖子成功');
-    resetFormData();
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      transformRequest: [(data) => {
+        // 将对象转换为URL编码的字符串
+        const params = new URLSearchParams();
+        Object.keys(data).forEach(key => {
+          if (data[key] !== undefined && data[key] !== null) {
+            params.append(key, data[key]);
+          }
+        });
+        return params;
+      }]
+    });
+
+    if (response.data.code === 1) {
+      ElMessage.success('发布帖子成功');
+      resetFormData();
+      closeSubmitChooseVisible();
+      // 跳转到论坛首页
+      router.push('/initialForum');
+    } else {
+      ElMessage.error(response.data.msg || '发布帖子失败');
+    }
   } catch (error) {
-    ElMessage.error('发布帖子失败')
+    console.error('发布帖子错误:', error);
+
+    if (error.response) {
+      // 服务器返回错误
+      console.error('服务器错误:', error.response.data);
+      ElMessage.error(`发布失败: ${error.response.data.msg || error.response.statusText}`);
+    } else if (error.request) {
+      // 请求发送但无响应
+      ElMessage.error('网络错误，请检查网络连接');
+    } else {
+      // 请求配置错误
+      ElMessage.error('发布失败，请检查表单数据');
+    }
+  } finally {
+    isUploading.value = false;
   }
-}
+};
+
+// 监听分类变化，重置子分类
+const handleSubjectChange = () => {
+  formData.sub_classify = '';
+};
 
 onMounted(() => {
-  getLabels();
-})
-
+  if (!userStore.isLoggedIn) {
+    ElMessage.warning('请先登录');
+    router.push('/login');
+    return;
+  }
+});
 </script>
 
 <template>
@@ -304,32 +313,21 @@ onMounted(() => {
         <div class="modal-content">
           <!-- 左侧：封面图片区域 -->
           <div class="cover-section">
-            <div v-if="formData.cover_avatar" class="cover-preview">
-              <img :src="URL.createObjectURL(formData.cover_avatar)" alt="封面预览" class="cover-image">
+            <div v-if="formData.cover_avatar_url" class="cover-preview">
+              <img :src="formData.cover_avatar_url" alt="封面预览" class="cover-image">
               <div class="cover-actions">
-                <button class="change-cover-btn" @click="clearCoverImage">清除封面</button>
+                <button class="clear-cover-btn" @click="clearCoverImage">更换封面</button>
               </div>
             </div>
             <div v-else class="cover-upload">
-              <label class="cover-upload-label">
-                <input 
-                  type="file" 
-                  class="cover-upload-input" 
-                  accept="image/*"
-                  @change="handleCoverImageChange"
-                />
-                <div class="upload-placeholder">
-                  <svg class="upload-icon" width="48" height="48" viewBox="0 0 24 24" fill="none">
-                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke="currentColor" stroke-width="2"/>
-                    <polyline points="14,2 14,8 20,8" stroke="currentColor" stroke-width="2"/>
-                    <line x1="16" y1="13" x2="8" y2="13" stroke="currentColor" stroke-width="2"/>
-                    <line x1="16" y1="17" x2="8" y2="17" stroke="currentColor" stroke-width="2"/>
-                    <polyline points="10,9 9,9 8,9" stroke="currentColor" stroke-width="2"/>
-                  </svg>
-                  <span class="upload-text">上传封面图片</span>
-                  <span class="upload-hint">支持 JPG、PNG 格式，最大 5MB</span>
-                </div>
-              </label>
+              <div class="upload-placeholder">
+                <svg class="upload-icon" width="48" height="48" viewBox="0 0 24 24" fill="none">
+                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke="currentColor" stroke-width="2"/>
+                  <polyline points="14,2 14,8 20,8" stroke="currentColor" stroke-width="2"/>
+                </svg>
+                <span class="upload-text">未选择封面</span>
+                <span class="upload-hint">可选</span>
+              </div>
             </div>
           </div>
 
@@ -338,65 +336,32 @@ onMounted(() => {
             <div class="post-title">
               <h4>{{ formData.title || '未设置标题' }}</h4>
             </div>
+            <div class="post-meta-info">
+              <span class="meta-item"><strong>分类:</strong> {{ formData.subject || '未选择' }}</span>
+              <span v-if="formData.sub_classify" class="meta-item"><strong>子分类:</strong> {{ formData.sub_classify }}</span>
+              <span class="meta-item"><strong>话题:</strong> {{ formData.label || '未选择' }}</span>
+              <span class="meta-item"><strong>类型:</strong> {{ formData.type || '未选择' }}</span>
+              <span class="meta-item"><strong>可见范围:</strong> {{ formData.visible_range || '未选择' }}</span>
+            </div>
             <div class="post-summary">
               <p>{{ formData.summary || '暂无摘要' }}</p>
             </div>
             <div class="post-content-preview">
               <p>{{ formData.content ? formData.content.substring(0, 200) + (formData.content.length > 200 ? '...' : '') : '暂无内容' }}</p>
             </div>
-            <div class="post-tags">
-              <span v-for="tag in formData.label" :key="tag" class="tag">#{{ tag }}</span>
-              <span v-if="formData.label.length === 0" class="no-tags">未选择话题</span>
-            </div>
           </div>
         </div>
 
-        <!-- 底部：设置区域 -->
+        <!-- 底部：发布按钮 -->
         <div class="modal-footer">
-          <div class="settings-section">
-            <!-- 版权选择 -->
-            <div class="setting-group">
-              <label class="setting-label">版权</label>
-              <div class="radio-group">
-                <label class="radio-label">
-                  <input type="radio" v-model="formData.type" value="0" class="radio-input">
-                  <span class="radio-text">原创</span>
-                </label>
-                <label class="radio-label">
-                  <input type="radio" v-model="formData.type" value="1" class="radio-input">
-                  <span class="radio-text">转载</span>
-                </label>
-              </div>
-            </div>
-
-            <!-- 可见范围选择 -->
-            <div class="setting-group">
-              <label class="setting-label">可见范围</label>
-              <div class="radio-group">
-                <label class="radio-label">
-                  <input type="radio" v-model="formData.visible_range" value="0" class="radio-input">
-                  <span class="radio-text">公开</span>
-                </label>
-                <label class="radio-label">
-                  <input type="radio" v-model="formData.visible_range" value="1" class="radio-input">
-                  <span class="radio-text">粉丝可见</span>
-                </label>
-                <label class="radio-label">
-                  <input type="radio" v-model="formData.visible_range" value="2" class="radio-input">
-                  <span class="radio-text">好友可见</span>
-                </label>
-                <label class="radio-label">
-                  <input type="radio" v-model="formData.visible_range" value="3" class="radio-input">
-                  <span class="radio-text">私人</span>
-                </label>
-              </div>
-            </div>
-          </div>
-
-          <!-- 发布按钮 -->
           <div class="action-section">
-            <button class="cancel-btn" @click="closeSubmitChooseVisible">取消</button>
-            <button class="publish-final-btn" @click="releaseForum">确认发布</button>
+            <button class="cancel-btn" @click="closeSubmitChooseVisible" :disabled="isUploading">
+              取消
+            </button>
+            <button class="publish-final-btn" @click="releaseForum" :disabled="isUploading">
+              <span v-if="isUploading">发布中...</span>
+              <span v-else>确认发布</span>
+            </button>
           </div>
         </div>
       </div>
@@ -406,222 +371,136 @@ onMounted(() => {
     <div class="release-form">
       <!-- 帖子标题 -->
       <div class="form-section">
-        <label class="section-label">帖子标题</label>
+        <label class="section-label">帖子标题 <span class="required">*</span></label>
         <div class="input-container">
-          <input 
-            v-model="formData.title"
-            class="title-input" 
-            placeholder="请输入帖子标题..."
-            type="text"
+          <input
+              v-model="formData.title"
+              class="title-input"
+              placeholder="请输入帖子标题..."
+              type="text"
+              maxlength="100"
           />
+          <div class="input-counter">{{ formData.title.length }}/100</div>
         </div>
       </div>
 
-                  <!-- 话题、学科、子分类选择 - 在同一行显示 -->
+      <!-- 文章分类选择 -->
+      <div class="form-row">
+        <div class="form-section form-col">
+          <label class="section-label">文章分类 <span class="required">*</span></label>
+          <div class="select-container">
+            <select v-model="formData.subject" @change="handleSubjectChange" class="custom-select">
+              <option value="">请选择分类</option>
+              <option v-for="subject in subjectOptions" :key="subject" :value="subject">
+                {{ subject }}
+              </option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-section form-col">
+          <label class="section-label">子分类</label>
+          <div class="select-container">
+            <select v-model="formData.sub_classify" class="custom-select" :disabled="!formData.subject">
+              <option value="">请选择子分类</option>
+              <option v-for="subClass in subClassifyOptions[formData.subject] || []" :key="subClass" :value="subClass">
+                {{ subClass }}
+              </option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- 文章话题选择 -->
       <div class="form-section">
-        <label class="section-label">分类选择</label>
-        <div class="category-row">
-          <!-- 话题选择 -->
-          <div class="category-item">
-            <label class="category-label">话题</label>
-            <div class="topic-section">
-              <div 
-                ref="labelButtonRef"
-                class="topic-selector" 
-                @click="toggleLabelBubble"
-                :class="{ active: labelBubbleVisible }"
-              >
-                <span class="topic-display" v-if="!formData.label">
-                  请选择话题
-                </span>
-                <span class="topic-display" v-else>
-                  #{{ formData.label }}
-                </span>
-                <svg class="topic-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" :style="{ transform: labelBubbleVisible ? 'rotate(180deg)' : 'rotate(0deg)' }">
-                  <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                </svg>
-              </div>
-
-              <!-- 话题气泡弹窗 -->
-              <div 
-                v-if="labelBubbleVisible"
-                class="topic-bubble"
-                @click.stop
-              >
-                <div class="bubble-content">
-                  <div class="bubble-header">
-                    <span class="bubble-title">选择话题</span>
-                    <button class="bubble-close" @click="closeLabelBubble">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                        <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                      </svg>
-                    </button>
-                  </div>
-                  <div class="topic-grid">
-                    <div 
-                      v-for="labelItem in label" 
-                      :key="labelItem.id"
-                      class="topic-option"
-                      @click="selectLabel(labelItem)"
-                    >
-                      #{{ labelItem.name }}
-                    </div>
-                  </div>
-                </div>
-                <div class="bubble-arrow"></div>
-              </div>
-            </div>
-            <button v-if="formData.label" class="remove-btn" @click="removeLabel">×</button>
-          </div>
-
-          <!-- 学科选择 -->
-          <div class="category-item">
-            <label class="category-label">学科</label>
-            <div class="topic-section">
-              <div 
-                ref="classifyButtonRef"
-                class="topic-selector" 
-                @click="toggleClassifyBubble"
-                :class="{ active: classifyBubbleVisible }"
-              >
-                <span class="topic-display" v-if="!formData.classify">
-                  请选择学科
-                </span>
-                <span class="topic-display" v-else>
-                  {{ formData.classify }}
-                </span>
-                <svg class="topic-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" :style="{ transform: classifyBubbleVisible ? 'rotate(180deg)' : 'rotate(0deg)' }">
-                  <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                </svg>
-              </div>
-
-              <!-- 学科气泡弹窗 -->
-              <div 
-                v-if="classifyBubbleVisible"
-                class="topic-bubble"
-                @click.stop
-              >
-                <div class="bubble-content">
-                  <div class="bubble-header">
-                    <span class="bubble-title">选择学科</span>
-                    <button class="bubble-close" @click="closeClassifyBubble">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                        <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                      </svg>
-                    </button>
-                  </div>
-                  <div class="topic-grid">
-                    <div 
-                      v-for="classifyItem in classifyOptions" 
-                      :key="classifyItem.id"
-                      class="topic-option"
-                      @click="selectClassify(classifyItem)"
-                    >
-                      {{ classifyItem.name }}
-                    </div>
-                  </div>
-                </div>
-                <div class="bubble-arrow"></div>
-              </div>
-            </div>
-            <button v-if="formData.classify" class="remove-btn" @click="removeClassify">×</button>
-          </div>
-
-          <!-- 子分类选择 -->
-          <div class="category-item">
-            <label class="category-label">子分类</label>
-            <div class="topic-section">
-              <div 
-                ref="postClassifiesButtonRef"
-                class="topic-selector" 
-                @click="togglePostClassifiesBubble"
-                :class="{ active: postClassifiesBubbleVisible, disabled: !formData.classify }"
-              >
-                <span class="topic-display" v-if="!formData.postClassify">
-                  {{ formData.classify ? '请选择子分类' : '请先选择学科' }}
-                </span>
-                <span class="topic-display" v-else>
-                  {{ formData.postClassify }}
-                </span>
-                <svg class="topic-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" :style="{ transform: postClassifiesBubbleVisible ? 'rotate(180deg)' : 'rotate(0deg)' }">
-                  <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                </svg>
-              </div>
-
-              <!-- 子分类气泡弹窗 -->
-              <div 
-                v-if="postClassifiesBubbleVisible"
-                class="topic-bubble"
-                @click.stop
-              >
-                <div class="bubble-content">
-                  <div class="bubble-header">
-                    <span class="bubble-title">选择子分类</span>
-                    <button class="bubble-close" @click="closePostClassifiesBubble">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                        <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                      </svg>
-                    </button>
-                  </div>
-                  <div class="topic-grid">
-                    <div 
-                      v-for="postClassifyItem in postClassifiesOptions" 
-                      :key="postClassifyItem.id"
-                      class="topic-option"
-                      @click="selectPostClassify(postClassifyItem)"
-                    >
-                      {{ postClassifyItem.name }}
-                    </div>
-                  </div>
-                </div>
-                <div class="bubble-arrow"></div>
-              </div>
-            </div>
-            <button v-if="formData.postClassify" class="remove-btn" @click="removePostClassify">×</button>
-          </div>
+        <label class="section-label">文章话题 <span class="required">*</span></label>
+        <div class="topic-grid">
+          <label
+              v-for="topic in labelOptions"
+              :key="topic"
+              class="topic-option-label"
+              :class="{ 'selected': formData.label === topic }"
+          >
+            <input
+                type="radio"
+                v-model="formData.label"
+                :value="topic"
+                class="topic-radio"
+            />
+            <span class="topic-text">#{{ topic }}</span>
+          </label>
         </div>
       </div>
 
-      <!-- 帖子摘要 -->
+      <!-- 文章类型和可见范围 -->
+      <div class="form-row">
+        <div class="form-section form-col">
+          <label class="section-label">文章类型 <span class="required">*</span></label>
+          <div class="radio-group">
+            <label v-for="type in typeOptions" :key="type" class="radio-label">
+              <input
+                  type="radio"
+                  v-model="formData.type"
+                  :value="type"
+                  class="radio-input"
+              />
+              <span class="radio-text">{{ type }}</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="form-section form-col">
+          <label class="section-label">可见范围 <span class="required">*</span></label>
+          <div class="select-container">
+            <select v-model="formData.visible_range" class="custom-select">
+              <option v-for="range in visibleRangeOptions" :key="range" :value="range">
+                {{ range }}
+              </option>
+            </select>
+          </div>
+        </div>
+      </div>
 
       <!-- 帖子摘要 -->
       <div class="form-section">
         <label class="section-label">帖子摘要</label>
         <div class="input-container">
-          <textarea 
-            v-model="formData.summary"
-            class="summary-input" 
-            placeholder="请输入帖子摘要..."
-            rows="3"
+          <textarea
+              v-model="formData.summary"
+              class="summary-input"
+              placeholder="请输入帖子摘要（可选）..."
+              rows="3"
+              maxlength="300"
           ></textarea>
+          <div class="input-counter">{{ formData.summary.length }}/300</div>
         </div>
       </div>
 
       <!-- 帖子内容 -->
       <div class="form-section">
-        <label class="section-label">帖子内容</label>
+        <label class="section-label">帖子内容 <span class="required">*</span></label>
         <div class="input-container">
-          <textarea 
-            v-model="formData.content"
-            class="content-input" 
-            placeholder="请输入帖子内容..."
-            rows="8"
+          <textarea
+              v-model="formData.content"
+              class="content-input"
+              placeholder="请输入帖子内容..."
+              rows="8"
           ></textarea>
         </div>
       </div>
 
       <!-- 封面图片 -->
       <div class="form-section">
-        <label class="section-label">封面图片</label>
+        <label class="section-label">封面图片（可选）</label>
         <div class="file-upload-section">
           <div class="upload-container">
             <!-- 左侧上传区域 -->
             <label class="file-upload-label">
-              <input 
-                type="file" 
-                class="cover-image-input" 
-                accept="image/*"
-                @change="handleCoverImageChange"
+              <input
+                  type="file"
+                  class="cover-image-input"
+                  accept="image/*"
+                  @change="handleCoverImageChange"
               />
               <div class="upload-content">
                 <svg class="upload-icon" width="48" height="48" viewBox="0 0 24 24" fill="none">
@@ -635,24 +514,25 @@ onMounted(() => {
                 <span class="upload-hint">支持 JPG、PNG 格式，最大 5MB</span>
               </div>
             </label>
-            
+
             <!-- 右侧图片预览区域 -->
             <div class="image-preview">
-              <div v-if="formData.cover_avatar" class="preview-content">
-                <img :src="URL.createObjectURL(formData.cover_avatar)" alt="封面图片预览" class="preview-image">
+              <div v-if="formData.cover_avatar_url" class="preview-content">
+                <img :src="formData.cover_avatar_url" alt="封面图片预览" class="preview-image">
               </div>
               <div v-else class="preview-placeholder">
                 <span class="placeholder-text">图片预览</span>
               </div>
             </div>
-            <div class="clear-button-container" v-if="formData.cover_avatar">
-              <button 
-              class="clear-button" 
-              @click="clearCoverImage"
-              >
+          </div>
+          <div class="clear-button-container" v-if="formData.cover_avatar_url">
+            <button
+                class="clear-button"
+                @click="clearCoverImage"
+                :disabled="isUploading"
+            >
               清除封面
             </button>
-            </div>
           </div>
         </div>
       </div>
@@ -663,11 +543,11 @@ onMounted(() => {
 <style scoped>
 .release-container {
   position: relative;
-  min-height: 100vh;
+  min-height: calc(100vh - 140px);
   background: #f8f9fa;
 }
 
-/* 头部区域优化 - 参考论坛详情页风格 */
+/* 头部区域优化 */
 .release-header {
   background: white;
   border-bottom: 1px solid #e0e0e0;
@@ -676,7 +556,7 @@ onMounted(() => {
 }
 
 .header-content {
-  max-width: 800px;
+  max-width: 1000px;
   margin: 0 auto;
   padding: 20px;
   display: flex;
@@ -702,7 +582,7 @@ onMounted(() => {
   margin: 0;
 }
 
-/* 发布按钮优化 - 放在右上角 */
+/* 发布按钮优化 */
 .release-btn {
   background: #42b983;
   color: white;
@@ -734,6 +614,174 @@ onMounted(() => {
   height: 16px;
 }
 
+/* 表单区域优化 */
+.release-form {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
+
+.form-section {
+  margin-bottom: 32px;
+}
+
+.section-label {
+  display: block;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 12px;
+}
+
+.section-label .required {
+  color: #ff4757;
+  margin-left: 4px;
+}
+
+.input-container {
+  width: 100%;
+  position: relative;
+}
+
+.input-counter {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  font-size: 12px;
+  color: #999;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+/* 输入框样式优化 */
+.title-input,
+.summary-input,
+.content-input,
+.custom-select {
+  width: 100%;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 16px 20px;
+  font-size: 16px;
+  font-family: inherit;
+  transition: all 0.3s ease;
+  background: white;
+  box-sizing: border-box;
+}
+
+.title-input:focus,
+.summary-input:focus,
+.content-input:focus,
+.custom-select:focus {
+  outline: none;
+  border-color: #42b983;
+  box-shadow: 0 0 0 3px rgba(66, 185, 131, 0.1);
+}
+
+.title-input {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.summary-input,
+.content-input {
+  resize: vertical;
+  line-height: 1.6;
+}
+
+.content-input {
+  min-height: 250px;
+}
+
+.custom-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  padding-right: 40px;
+  cursor: pointer;
+}
+
+.custom-select:disabled {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
+}
+
+/* 表单行布局 */
+.form-row {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+.form-col {
+  flex: 1;
+}
+
+/* 话题网格 */
+.topic-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 12px;
+}
+
+.topic-option-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 16px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: #f8f9fa;
+}
+
+.topic-option-label:hover {
+  border-color: #42b983;
+  background: #e6f7ef;
+}
+
+.topic-option-label.selected {
+  background: #42b983;
+  color: white;
+  border-color: #42b983;
+}
+
+.topic-radio {
+  display: none;
+}
+
+.topic-text {
+  font-weight: 500;
+}
+
+/* 单选按钮组 */
+.radio-group {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.radio-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.radio-input {
+  margin: 0;
+  width: 18px;
+  height: 18px;
+}
+
+.radio-text {
+  font-size: 16px;
+  color: #333;
+}
+
 /* 发布信息弹窗优化 */
 .publish-modal-overlay {
   position: fixed;
@@ -745,7 +793,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 2000;
 }
 
 .publish-modal {
@@ -822,22 +870,6 @@ onMounted(() => {
   justify-content: center;
 }
 
-.change-cover-btn {
-  background: #42b983;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  padding: 6px 12px;
-  font-size: 12px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.change-cover-btn:hover {
-  background: #3aa676;
-  transform: translateY(-1px);
-}
-
 .clear-cover-btn {
   background: #f5f5f5;
   color: #666;
@@ -910,6 +942,26 @@ onMounted(() => {
   border-bottom: 1px solid #f0f0f0;
 }
 
+.post-meta-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.meta-item {
+  font-size: 13px;
+  color: #666;
+  padding: 4px 8px;
+  background: #f8f9fa;
+  border-radius: 4px;
+}
+
+.meta-item strong {
+  color: #333;
+  margin-right: 4px;
+}
+
 .post-summary p {
   font-size: 14px;
   color: #666;
@@ -931,71 +983,14 @@ onMounted(() => {
   border: 1px solid #f0f0f0;
 }
 
-.post-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.tag {
-  background: #e3f2fd;
-  color: #1976d2;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 12px;
-}
-
-.no-tags {
-  color: #999;
-  font-size: 12px;
-}
-
 /* 底部设置区域 */
 .modal-footer {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   padding: 20px 24px;
   border-top: 1px solid #e0e0e0;
   background: #fafafa;
-}
-
-.settings-section {
-  display: flex;
-  gap: 32px;
-}
-
-.setting-group {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.setting-label {
-  font-size: 14px;
-  color: #666;
-  font-weight: 500;
-}
-
-.radio-group {
-  display: flex;
-  gap: 16px;
-}
-
-.radio-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-}
-
-.radio-input {
-  margin: 0;
-}
-
-.radio-text {
-  font-size: 14px;
-  color: #333;
 }
 
 /* 按钮样式优化 */
@@ -1040,247 +1035,6 @@ onMounted(() => {
 .action-section {
   display: flex;
   gap: 12px;
-}
-
-/* 表单区域优化 */
-.release-form {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 40px 20px;
-}
-
-.form-section {
-  margin-bottom: 32px;
-}
-
-.section-label {
-  display: block;
-  font-size: 16px;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 12px;
-}
-
-/* 分类选择器在同一行显示 */
-.category-row {
-  display: flex;
-  gap: 16px;
-  align-items: flex-start;
-}
-
-.category-item {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.category-label {
-  font-size: 14px;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 4px;
-}
-
-.topic-section {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.topic-selector {
-  flex: 1;
-  border: 1px solid #dcdfe6;
-  border-radius: 6px;
-  padding: 8px 12px;
-  cursor: pointer;
-  background: white;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 40px;
-}
-
-.topic-selector:hover {
-  border-color: #409eff;
-}
-
-.topic-selector.disabled {
-  background-color: #f5f7fa;
-  color: #c0c4cc;
-  cursor: not-allowed;
-}
-
-.topic-display {
-  font-size: 14px;
-  color: #606266;
-}
-
-.topic-selector.active {
-  border-color: #42b983;
-  box-shadow: 0 0 0 3px rgba(66, 185, 131, 0.1);
-}
-
-.topic-selector.active .topic-arrow {
-  color: #42b983;
-  transform: rotate(180deg);
-}
-
-.topic-arrow {
-  color: #c0c4cc;
-  transition: all 0.3s ease;
-}
-
-.topic-selector:hover .topic-arrow {
-  color: #409eff;
-}
-
-.remove-btn {
-  background: #f56c6c;
-  color: white;
-  border: none;
-  border-radius: 50%;
-  width: 20px;
-  height: 20px;
-  cursor: pointer;
-  font-size: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.3s;
-}
-
-.remove-btn:hover {
-  background: #f78989;
-}
-
-/* 气泡弹窗样式 */
-.topic-bubble {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  z-index: 1000;
-  margin-top: 8px;
-  min-width: 200px;
-}
-
-.bubble-content {
-  background: white;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  overflow: hidden;
-}
-
-.bubble-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-  border-bottom: 1px solid #f0f0f0;
-  background: #fafafa;
-}
-
-.bubble-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #333;
-}
-
-.bubble-close {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
-  color: #666;
-  transition: background 0.3s;
-}
-
-.bubble-close:hover {
-  background: #f0f0f0;
-}
-
-.topic-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 8px;
-  padding: 12px;
-  max-height: 200px;
-  overflow-y: auto;
-}
-
-.topic-option {
-  padding: 8px 12px;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-  text-align: center;
-  transition: all 0.3s;
-  background: white;
-}
-
-.topic-option:hover {
-  border-color: #409eff;
-  background: #ecf5ff;
-  color: #409eff;
-}
-
-.bubble-arrow {
-  position: absolute;
-  top: -6px;
-  left: 20px;
-  width: 12px;
-  height: 12px;
-  background: white;
-  border-left: 1px solid #e0e0e0;
-  border-top: 1px solid #e0e0e0;
-  transform: rotate(45deg);
-}
-
-.input-container {
-  width: 100%;
-}
-
-/* 输入框样式优化 */
-.title-input,
-.summary-input,
-.content-input {
-  width: 100%;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 16px 20px;
-  font-size: 16px;
-  font-family: inherit;
-  transition: all 0.3s ease;
-  background: white;
-  box-sizing: border-box;
-}
-
-.title-input:focus,
-.summary-input:focus,
-.content-input:focus {
-  outline: none;
-  border-color: #42b983;
-  box-shadow: 0 0 0 3px rgba(66, 185, 131, 0.1);
-}
-
-.title-input {
-  font-size: 18px;
-  font-weight: 600;
-}
-
-.summary-input,
-.content-input {
-  resize: vertical;
-  line-height: 1.6;
-}
-
-.content-input {
-  min-height: 250px;
 }
 
 /* 文件上传区域 */
@@ -1374,57 +1128,112 @@ onMounted(() => {
 }
 
 .clear-button-container {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  margin-top: 12px;
+  text-align: center;
 }
 
 .clear-button {
-  margin-top: auto;
   padding: 8px 16px;
-  border: 1px solid #e0e0e0;
-  border-radius: 6px;
+  border: 1px solid #ff4757;
+  background: white;
+  color: #ff4757;
+  border-radius: 20px;
   cursor: pointer;
   transition: all 0.3s ease;
-  background: #81ffc0;
-  color: #333;
+  font-size: 14px;
 }
 
 .clear-button:hover {
-  background: #66ffb3;
-  border-color: #66ffb3;
+  background: #ff4757;
+  color: white;
 }
 
 /* 响应式设计 */
 @media (max-width: 768px) {
-  .category-row {
-    flex-direction: column;
-    gap: 12px;
-  }
-  
-  .category-item {
-    width: 100%;
-  }
-  
   .upload-container {
     flex-direction: column;
   }
-  
+
   .file-upload-label {
     max-width: 100%;
   }
-  
+
   .upload-content {
     min-height: 120px;
     padding: 24px;
   }
-  
+
   .image-preview {
     min-height: 150px;
   }
-  
+
   .preview-image {
     height: 120px;
   }
+
+  .modal-content {
+    flex-direction: column;
+  }
+
+  .cover-section {
+    flex: none;
+    width: 100%;
+  }
+
+  .upload-placeholder,
+  .cover-image {
+    width: 100%;
+    height: 150px;
+  }
+
+  .form-row {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .modal-footer {
+    flex-direction: column;
+    gap: 16px;
+    align-items: stretch;
+  }
+
+  .action-section {
+    justify-content: flex-end;
+  }
+
+  .topic-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+/* 添加发布中状态样式 */
+.publish-final-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* 发布中动画效果 */
+.publish-final-btn:disabled:hover {
+  background: #ccc;
+  transform: none;
+  box-shadow: none;
+}
+
+/* 加载动画 */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #fff;
+  border-top: 2px solid transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-right: 8px;
 }
 </style>

@@ -175,23 +175,23 @@ const handleWebSocketMessage = (messageData) => {
 
 const chatMessage = reactive({
   recentChatsList: [
-    { id: 1,
-      name: '用户1',
-      avatar: 'https://example.com/avatar1.jpg',
-      content: '你好',
-      sendTime: '2023-10-10 10:00:00',
-      isRead: false,
-      messages: [
-        {
-          id: 1,
-          sender: 'friend',
-          type: 'message',
-          content: '你好',
-          time: '2023-10-10 10:00:00'
-        }
-      ],
-      isOnline: false
-    }
+    // { id: 1,
+    //   name: '用户1',
+    //   avatar: 'https://example.com/avatar1.jpg',
+    //   content: '你好',
+    //   sendTime: '2023-10-10 10:00:00',
+    //   isRead: false,
+    //   message: [
+    //     {
+    //       id: 1,
+    //       sender: 'friend',
+    //       type: 'message',
+    //       content: '你好',
+    //       time: '2023-10-10 10:00:00'
+    //     }
+    //   ],
+    //   isOnline: false
+    // }
   ],
   focusFriendList: []
 })
@@ -222,7 +222,7 @@ const handleFriendMessage = (messageData) => {
           isOnline: false,
           content: chat.content,
           sendTime: chat.sendTime,
-          messages: []
+          message: []
         })
       })
     }
@@ -241,7 +241,7 @@ const handleFocusFriendMessage = (messageData) => {
           isOnline: false,
           content: friend.content,
           sendTime: friend.sendTime,
-          messages: []
+          message: []
         })
       })
     }
@@ -292,76 +292,39 @@ const handleRealtimeMessage = (messageData) => {
 
   const fromUserId = messageData.sender_id
   const messageContent = messageData.message.content
+  const messageType = messageData.message.type
   const senderName = messageData.sender_name || `用户${fromUserId}`
 
   // 查找或创建好友
-  let friend = chatMessage.recentChatsList.find(item => item.id === fromUserId) || chatMessage.focusFriendList.find(item => item.id === fromUserId)
-  console.log('friend:', friend)
-  // if (!friend) {
-  //   friend = {
-  //     id: fromUserId,
-  //     name: senderName,
-  //     avatar: messageData.sender_avatar || '',
-  //     content: messageContent,
-  //     sendTime: new Date().toLocaleString(),
-  //     isRead: false,
-  //     messages: [],
-  //     isOnline: isOnline(fromUserId)
-  //   }
-  //   focusFriendDatas.List.unshift(friend)
-  // }
-
-  // 添加消息
-  const newMessage = {
-    id: messageData.message.id,
-    sender: 'friend',
-    type: messageData.message.type,
-    content: messageContent,
-    time: messageData.message.sendTime || new Date().toLocaleString()
+  const friend1 = chatMessage.focusFriendList.find(item => item.id === fromUserId) 
+  const friend2 = chatMessage.recentChatsList.find(item => item.id === fromUserId)
+  if(friend1) {
+    friend1.content = messageContent
+    friend1.sendTime = new Date().toLocaleString()
+    friend1.isRead = activeFriend.value?.id === fromUserId
   }
-
-  // 检查是否已存在相同ID的消息（避免重复添加）
-  const existingMessageIndex = friend.messages.findIndex(msg => msg.id === newMessage.id)
-  if (existingMessageIndex === -1) {
-    // 按时间顺序插入消息
-    const insertIndex = friend.messages.findIndex(msg => 
-      new Date(msg.time || msg.sendTime) > new Date(newMessage.time)
-    )
-    
-    if (insertIndex === -1) {
-      friend.messages.push(newMessage)
-    } else {
-      friend.messages.splice(insertIndex, 0, newMessage)
-    }
+  if(friend2) {
+    friend2.content = messageContent
+    friend2.sendTime = new Date().toLocaleString()
+    friend2.isRead = activeFriend.value?.id === fromUserId
   }
-  // 更新最后一条消息内容
-  friend.content = messageContent
-  friend.sendTime = new Date().toLocaleString()
-  friend.isRead = activeFriend.value?.id === fromUserId
-
   // 如果当前正在与发送者聊天，滚动到底部
   if (activeFriend.value?.id === fromUserId) {
     scrollToBottom()
   } else {
-    // 显示通知并增加未读计数
-    // showNewMessageNotification(fromUserId, senderName, messageContent)
-    // addUnreadMessage(fromUserId)
-  }
 
-  // console.log('消息已添加到聊天记录')
+  }
+   getFriendData(fromUserId)
 }
 
 // 选择好友
 const selectFriend = async (friend) => {
   friend.isRead = true
   activeFriend.value = friend
-
   // 清除该好友的未读消息
   clearUnreadMessages(friend.id)
-
   // 获取好友聊天记录
   getFriendData(friend.id)
-
   scrollToBottom()
 }
 
@@ -380,21 +343,20 @@ const getFriendData = async (friendId) => {
     })
     if (response.data.code === 1 && response.data.data) {
       const friend = chatMessage.focusFriendList.find(item => item.id === friendId)
+      const friend1 = chatMessage.recentChatsList.find(item => item.id === friendId)
       if(friend) {
-        friend.messages = response.data.data.message
-      } else {
-        const friendInRecent = chatMessage.recentChatsList.find(item => item.id === friendId)
-        if(friendInRecent) {
-          friendInRecent.messages = response.data.data.message
-        }
+        friend.message = response.data.data.message
       }
-      console.log('好友聊天记录:', friend.messages)
+      if(friend1){
+        friend1.message = response.data.data.message
+      }
     } else {
       console.error('获取聊天记录失败:', response.data.msg)
     }
   } catch (error) {
     console.error('获取聊天记录失败:', error)
   }
+  console.log(chatMessage)
 }
 
 
@@ -487,12 +449,39 @@ const toggleGroup = (groupId) => {
 
 
 // 搜索好友
-const filteredFriends = computed(() => {
-  if (!searchText.value) return focusFriendDatas.List
-  return focusFriendDatas.List.filter(friend =>
-      friend.name.toLowerCase().includes(searchText.value.toLowerCase())
-  )
+const friendSearchText = ref('')
+const friendSearchResults = reactive({
+  List: []
 })
+const friendSearchApi = '/api/search/users'
+const filteredFriends = async () => {
+  if (!friendSearchText.value.trim()) {
+    friendSearchResults.value = []
+    return
+  }
+
+  try {
+    const response = await axios.get(friendSearchApi, {
+      params: { 
+        keyword: friendSearchText.value.trim()
+       },
+      headers: {
+        'token': JWT_TOKEN,
+        'Content-Type': 'application/json'
+      }
+    })
+    console.log('搜索好友响应:', response.data)
+    if (response.data.code === 1) {
+      friendSearchResults.List = response.data.data.list
+    } else {
+      ElMessage.error('搜索失败: ' + response.data.msg)
+    }
+    console.log('搜索好友结果:', friendSearchResults.List)
+  } catch (error) {
+    console.error('搜索好友失败:', error)
+    ElMessage.error('搜索好友失败，请重试')
+  }
+}
 
 // 发送消息到WebSocket
 const sendMessageToWebSocket = (message) => {
@@ -500,7 +489,7 @@ const sendMessageToWebSocket = (message) => {
     // 修复消息格式，确保toUserId是数字
     const messageData = {
       toUserId: parseInt(activeFriend.value.id), // 确保是数字
-      message: message
+      message: message,
     }
     console.log('发送消息:', messageData)
     ws.send(JSON.stringify(messageData))
@@ -519,16 +508,16 @@ const sendTextMessage = () => {
   const sent = sendMessageToWebSocket(newMessage.value)
   if (sent) {
     // 前端立即显示自己发送的消息
-    const message = {
-      id: Date.now(),
-      sender: 'me',
-      type: 'text',
-      content: newMessage.value,
-      time: new Date().toLocaleString()
-    }
+    // const message = {
+    //   id: Date.now(),
+    //   sender: 'me',
+    //   type: 'text',
+    //   content: newMessage.value,
+    //   time: new Date().toLocaleString()
+    // }
 
     if (activeFriend.value) {
-      activeFriend.value.messages.push(message)
+      // activeFriend.value.message.push(message)
       activeFriend.value.content = newMessage.value
       activeFriend.value.sendTime = new Date().toLocaleString()
     }
@@ -601,27 +590,32 @@ const sendImageMessage = async () => {
 
     if (response.data.code === 1) {
       const imageUrl = response.data.data
+      console.log('图片上传成功:', imageUrl)
       const sent = sendMessageToWebSocket(imageUrl)
 
       if (sent) {
         // 前端立即显示图片消息
-        const message = {
-          id: Date.now(),
-          sender: 'me',
-          type: 'image',
-          imageUrl: imageUrl,
-          time: new Date().toLocaleString()
-        }
+        // const message = {
+        //   id: Date.now(),
+        //   sender: 'me',
+        //   type: 'image',
+        //   imageUrl: imageUrl,
+        //   time: new Date().toLocaleString()
+        // }
 
         if (activeFriend.value) {
-          if (!activeFriend.value.messages) {
-            activeFriend.value.messages = []
+          const friend1 = chatMessage.focusFriendList.find(item => item.id === activeFriend.value.id) 
+          const friend2 = chatMessage.recentChatsList.find(item => item.id === activeFriend.value.id)
+          if(friend1) {
+            friend1.content = '[图片]'
+            friend1.sendTime = new Date().toLocaleString()
           }
-          activeFriend.value.messages.push(message)
-          activeFriend.value.content = '[图片]'
-          activeFriend.value.sendTime = new Date().toLocaleString()
+          if(friend2) {
+            friend2.content = '[图片]'
+            friend2.sendTime = new Date().toLocaleString()
+          }
         }
-
+        getFriendData(activeFriend.value.id)
         clearSelectedImage()
         scrollToBottom()
       }
@@ -671,8 +665,8 @@ watch(() => activeFriend.value?.id, () => {
 })
 
 watch(() => {
-  if (activeFriend.value && activeFriend.value.messages) {
-    return activeFriend.value.messages.length
+  if (activeFriend.value && activeFriend.value.message) {
+    return activeFriend.value.message.length
   }
   return 0
 }, () => {
@@ -717,16 +711,17 @@ onMounted(() => {
           <input
               type="text"
               placeholder="搜索联系人、群聊"
-              v-model="searchText"
+              v-model="friendSearchText"
+              @keyup.enter="filteredFriends"
           >
-          <button class="search-btn">
-            <i class="fas fa-search"></i>
+          <button class="search-btn" @click="filteredFriends">
+            <i class="fas fa-search">搜索</i>
           </button>
         </div>
       </div>
 
       <!-- 好友列表 -->
-      <div class="friends-container">
+      <div class="friends-container" v-if="friendSearchText === ''">
         <!-- 分组列表 -->
         <div class="friend-group" v-for="group in friendGroups" :key="group.id">
           <div class="group-header" @click="toggleGroup(group.id)">
@@ -765,6 +760,33 @@ onMounted(() => {
           </div>
         </div>
       </div>
+      <div class="friends-container" v-if="friendSearchText !== ''">
+        <ul class="friend-list">
+          <li
+              class="friend-item"
+              v-for="friend in friendSearchResults.List"
+              :key="friend.id"
+              @click="selectFriend(friend)"
+              :class="{ active: activeFriend && activeFriend.id === friend.id }"
+          >
+            <div class="friend-avatar" :class="friend.isOnline ? 'online' : 'offline'">
+              <img :src="friend.avatar" alt="" class="friend-avatar-image">
+            </div>
+            <div class="friend-info">
+              <div class="friend-name">{{ friend.name }}</div>
+              <div class="friend-status" :class="friend.isRead ? 'read' : 'unread'">
+                {{ friend.content }}
+              </div>
+            </div>
+            <div class="friend-meta">
+              <div class="friend-time">{{ friend.sendTime }}</div>
+              <div class="friend-online-status" :class="friend.isOnline ? 'online' : 'offline'">
+                {{ friend.isOnline ? '在线' : '离线' }}
+              </div>
+            </div>
+          </li>
+        </ul>
+      </div>
     </div>
 
     <!-- 右侧聊天区域 -->
@@ -785,11 +807,11 @@ onMounted(() => {
       </div>
 
       <!-- 消息区域 -->
-      <div class="chat-messages" v-if="activeFriend" ref="messagesContainer">
+      <div class="chat-message" v-if="activeFriend" ref="messagesContainer">
         <div
             class="message"
             :class="message.sender === 'me' ? 'sent' : 'received'"
-            v-for="message in activeFriend.messages"
+            v-for="message in activeFriend.message"
             :key="message.id"
         >
           <!-- 头像区域 -->
@@ -825,10 +847,10 @@ onMounted(() => {
             <div v-if="message.type === 'text'" class="message-text">{{ message.content }}</div>
             <div v-if="message.type === 'image'" class="message-image">
               <img
-                  :src="message.imageUrl || message.content"
+                  :src="message.content"
                   alt=""
                   class="image-content"
-                  @click="openImageModal(message.imageUrl || message.content)"
+                  @click="openImageModal(message.content)"
               >
             </div>
             <div class="message-time">{{ message.time }}</div>
@@ -906,6 +928,8 @@ onMounted(() => {
 .chat-container {
   height: 100%;
   width: 100%;
+  min-height: 600px;
+  max-height: 650px;
   display: flex;
   background: white;
   border-radius: 12px;
@@ -1281,7 +1305,7 @@ onMounted(() => {
   gap: 8px;
 }
 
-.chat-messages {
+.chat-message {
   flex: 1;
   padding: 20px;
   overflow-y: auto;
@@ -1376,12 +1400,12 @@ onMounted(() => {
 
 /* 图片消息样式 */
 .message-image {
-  margin-bottom: 6px;
+  /* margin-bottom: 6px; */
 }
 
 .image-content {
-  max-width: 300px;
-  max-height: 300px;
+  max-width: 200px;
+  max-height: 200px;
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -1453,21 +1477,21 @@ onMounted(() => {
 }
 
 /* 滚动条样式 */
-.chat-messages::-webkit-scrollbar {
+.chat-message::-webkit-scrollbar {
   width: 6px;
 }
 
-.chat-messages::-webkit-scrollbar-track {
+.chat-message::-webkit-scrollbar-track {
   background: #f1f1f1;
   border-radius: 3px;
 }
 
-.chat-messages::-webkit-scrollbar-thumb {
+.chat-message::-webkit-scrollbar-thumb {
   background: #c1c1c1;
   border-radius: 3px;
 }
 
-.chat-messages::-webkit-scrollbar-thumb:hover {
+.chat-message::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
 }
 
@@ -1716,24 +1740,24 @@ onMounted(() => {
 
 /* 滚动条样式 */
 .friends-container::-webkit-scrollbar,
-.chat-messages::-webkit-scrollbar {
+.chat-message::-webkit-scrollbar {
   width: 6px;
 }
 
 .friends-container::-webkit-scrollbar-track,
-.chat-messages::-webkit-scrollbar-track {
+.chat-message::-webkit-scrollbar-track {
   background: #f5f5f5;
   border-radius: 3px;
 }
 
 .friends-container::-webkit-scrollbar-thumb,
-.chat-messages::-webkit-scrollbar-thumb {
+.chat-message::-webkit-scrollbar-thumb {
   background: #c8e6c9;
   border-radius: 3px;
 }
 
 .friends-container::-webkit-scrollbar-thumb:hover,
-.chat-messages::-webkit-scrollbar-thumb:hover {
+.chat-message::-webkit-scrollbar-thumb:hover {
   background: #81C784;
 }
 

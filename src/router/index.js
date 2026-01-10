@@ -19,6 +19,8 @@ import ReleaseForumView from '@/views/forum/releaseForum.vue';
 import ForumHomePageView from '@/views/user/forumHomePage.vue';
 import ForumUserPageView from '@/views/user/forumUserPage.vue';
 import homePageView from '@/views/user/homePage.vue';
+import NewsListView from '@/views/news/NewsList.vue';
+import NewsDetailView from '@/views/news/NewsDetail.vue';
 
 
 
@@ -46,6 +48,8 @@ const routes = [
       {path: 'forumHomePage', name: 'forumHomePage', component: ForumHomePageView},
       {path: 'forumUserPage', name: 'forumUserPage', component: ForumUserPageView},
       {path: 'homePage', name: 'homePage', component: homePageView},
+      {path: 'news', name: 'news', component: NewsListView },  // 新闻列表页
+      {path: 'newsDetail', name: 'newsDetail', component: NewsDetailView }  // 新闻详情页
     ]
   },
   {path: '/login', name: 'login', component: LoginView},

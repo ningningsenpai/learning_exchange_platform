@@ -89,16 +89,7 @@ const getForumDetail = async () => {
 // 左侧推荐帖子(返回id 和 title)
 const recommendPostsApi = '/api/getTopicSimilarPosts'
 const recommendPosts = reactive({
-  list: [
-    {
-      id: 1,
-      title: '推荐帖子1'
-    },
-    {
-      id: 2,
-      title: '推荐帖子2'
-    },
-  ]
+  list: []
 })
 const getRecommendPosts = async () => {
   try {
@@ -123,13 +114,29 @@ const getRecommendPosts = async () => {
   }
 }
 
+// 帖子浏览量增加
+const incPageViewsByIdApi = '/api/incPageViewsById'
+const incPageViewsById = async (forumId) => {
+  try {
+    await axios.post(incPageViewsByIdApi, {
+      id: forumId
+    }, {
+      headers: {
+        'token': JWT_TOKEN,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+    });
+  } catch (error) {
+    ElMessage.error('增加页面访问量失败');
+  }
+}
+
+// 跳转帖子详情
 const goToForumDetail = (postId) => {
-  router.push({
-    path: '/forumDetail',
-    query: {
-      id: postId
-    }
-  })
+  incPageViewsById(postId)
+  forumId.value = postId
+  getForumDetail()
+  getForumComments()
 }
 
 
@@ -294,6 +301,7 @@ const sendComment = async () => {
       if (response.data.code === 1) {
         ElMessage.success('评论成功')
         await getForumComments()
+        forumPost.comment_count++
       } else {
         ElMessage.error(response.data.msg)
       }
@@ -304,6 +312,7 @@ const sendComment = async () => {
         try {
           const pureContent = commentContent.value.replace(`回复${replyToUser.value}：`, '');
           const response = await axios.post(sendCommentApi, {
+            post_id: forumId.value,
             comment_type: 'reply',
             reply_type: replyToCommentId.value == 0 ? 'comment' : 'reply',
             content: pureContent,
@@ -321,6 +330,7 @@ const sendComment = async () => {
             const parentComment = comments.List.find(comment => comment.id === replyToParentCommentId.value)
             await getCommentReplies(parentComment)
             parentComment.reply_count++
+            forumPost.comment_count++
           } else {
             ElMessage.error(response.data.msg)
           }
@@ -656,6 +666,7 @@ onMounted(() => {
         <img :src="forumPost.author_avatar" alt="作者头像" class="author-avatar" @click="goToPersonHomePage(forumPost.user_id)"/>
         <span class="author-name" @click="goToPersonHomePage(forumPost.user_id)">{{forumPost.author_name}}</span>
         <button 
+          v-if="forumPost.user_id !== userInfo.id"
           class="follow-button" 
           :class="{ 'followed': isFollowed }"
           @click="handleFollow"

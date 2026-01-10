@@ -7,12 +7,12 @@ import router from '@/router'
 // 获取用户信息
 const userInfoApi = '/api/getUserInfo'
 const userInfo = reactive({
-    id: 1,
-    username: '张三',
-    avatar: 'src/static/image.png',
-    grade: '大一',
-    major: '计算机科学与技术',
-    summary: '这个人很懒，什么都没有留下。',
+    id: 0,
+    username: '',
+    avatar: '',
+    grade: '',
+    major: '',
+    summary: '',
 })
 const getUserInfo = async () => {
     try {

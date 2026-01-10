@@ -3,21 +3,32 @@ import { reactive, computed, onMounted, ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import axios from 'axios';
 import router from '@/router'
+import { useUserStore } from '@/stores/userStore.js'
+
+
+// 获取用户存储实例
+const userStore = useUserStore()
+const JWT_TOKEN = userStore.token
 
 const userId = ref();
 // 获取用户当前用户
 const currentUserInfoApi = '/api/getUserInfo'
 const currentUserInfo = reactive({
-  id: 1,
-  username: '张三',
-  avatar: 'src/static/image.png',
-  grade: '大一',
-  major: '计算机科学与技术',
-  summary: '这个人很懒，什么都没有留下。',
+  id: 0,
+  username: '',
+  avatar: '',
+  grade: '',
+  major: '',
+  summary: '',
 })
 const getCurrentUserInfo = async () => {
   try {
-      const response = await axios.get(currentUserInfoApi)
+      const response = await axios.get(currentUserInfoApi,{
+      headers: {
+        'token': JWT_TOKEN,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+   });
       if(response.data.code === 1) {
           Object.assign(currentUserInfo, response.data.data)
       } else {
@@ -30,11 +41,11 @@ const getCurrentUserInfo = async () => {
 
 // 根据id获取用户信息
 const checkUserInfo = reactive({
-  id: 1,
-  username: '张三',
+  id: userId.value,
+  username: '',
   avatar: 'src/static/image.png',
-  summary: '这是一个用户',
-  focusStatus: 0, // 关注状态 0：相互未关注 1：当前用户单向关注 2：对方单向关注 3：互相关注
+  summary: '',
+  focusStatus: false,
   focusCount: 10,
   fansCount: 15,
   postCount: 6,
@@ -47,8 +58,11 @@ const checkUserInfoById = async () => {
   try {
       const response = await axios.get(checkUserInfoApi, {
           params: {
-              userId: userId.value
-          }
+              user_id: userId.value
+          }, headers: {
+              'token': JWT_TOKEN,
+              'Content-Type': 'application/x-www-form-urlencoded'
+            }
       })
       if(response.data.code === 1) {
           Object.assign(checkUserInfo, response.data.data)
@@ -59,110 +73,84 @@ const checkUserInfoById = async () => {
       ElMessage.error("获取用户信息失败，请重试")
   }
 }
-// 关注用户
-const followUserApi = '/api/focusUser'
+const isFollowUserApi = '/api/checkFocusStatus'
+const checkFocusStatus = async () => {
+  console.log('检查关注状态的用户ID:', userId.value);
+  try {
+    const response = await axios.get(isFollowUserApi, {
+      headers: {
+        'token': JWT_TOKEN,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      params: {
+        check_user_id: userId.value
+      }
+    })
+    if(response.data.code == 1) {
+      checkUserInfo.focusStatus = response.data.data
+    } else {
+      ElMessage.error(response.data.msg)
+    }
+  } catch (error) {
+    ElMessage.error('检查关注状态失败')
+  }
+}
+// 关注和取消关注
+const followUserApi = '/api/user/focusUser'
 const followUser = async (userId) => {
   try {
     await axios.post(followUserApi, {
       focus_user_id: userId
     }, {
       headers: {
-        'Content-Type': 'application/json'
+        'token': JWT_TOKEN,
+        'Content-Type': 'application/x-www-form-urlencoded'
       }
     });
   } catch (error) {
     ElMessage.error('关注用户失败');
   }
 }
-// 取消关注用户
-const unfollowUserApi = '/api/cancelFocusUser'
+const unfollowUserApi = '/api/user/cancelFocusUser'
 const unfollowUser = async (userId) => {
   try {
-    await axios.delete(unfollowUserApi, {
+    await axios.post(unfollowUserApi, {
       focus_user_id: userId
     }, {
       headers: {
-        'Content-Type': 'application/json'
+        'token': JWT_TOKEN,
+        'Content-Type': 'application/x-www-form-urlencoded'
       }
     });
   } catch (error) {
     ElMessage.error('取消关注用户失败');
   }
 }
-// 切换关注状态
-const changeFollowStatus = () => {
-  if (checkUserInfo.focusStatus === 0) {
-    checkUserInfo.focusStatus = 1
-    checkUserInfo.fansCount++
-    followUser(userId.value)
-  } else if (checkUserInfo.focusStatus === 1) {
-    checkUserInfo.focusStatus = 0
-    checkUserInfo.fansCount--
-    unfollowUser(userId.value)
-  } else if (checkUserInfo.focusStatus === 2) {
-    checkUserInfo.focusStatus = 3
-    checkUserInfo.fansCount++
-    followUser(userId.value)
-  } else if (checkUserInfo.focusStatus === 3) {
-    checkUserInfo.focusStatus = 2
-    checkUserInfo.fansCount--
-    unfollowUser(userId.value)
+const changeFollowStatus = async () => {
+  if(checkUserInfo.focusStatus) {
+    await unfollowUser(userId.value)
+    await checkFocusStatus(userId.value)
+    await checkUserInfoById()
+    ElMessage.success('已取消关注')
+  } else {
+    await followUser(userId.value)
+    await checkFocusStatus(userId.value)
+    await checkUserInfoById()
+    ElMessage.success('已关注')
   }
 }
 
-
 // 获取用户发布的帖子
-const forumPost = reactive({
-  user_id: '1',
-  forum_id: '1',
-  title: '这是一个很有趣的帖子标题',
-  publish_date: '2024-06-01',
-  summary: '这是帖子内容的简要介绍',
-  content: '这是帖子内容的这是帖子内容的这是帖子内容的这是帖子内容的这是帖子内容的这是帖子内容的这是帖子内容的,这是帖子内容的这是帖子内容的这是帖子内容的,这是帖子内容的这是帖子内容的这是帖子内容的这是帖子内容的.',
-  author_name: '张三哈哈哈',
-  author_avatar: 'src/static/image.png',
-  page_views: 1234,
-  label: ['前端开发', 'Vue.js'],
-  cover_avatar: 'src/static/1.jpg',
-  type: '原创',
-  visible_range: '公开',
-  like_count: 456,
-  collect_count: 78,
-  comment_count: 2,
-  subject: '计算机',
-  sub_classify: '前端',
-  is_followed: false
-})
-const forumPost1 = reactive({
-  user_id: '1',
-  forum_id: '2',
-  title: '这是一个很有趣的帖子标题',
-  publish_date: '2024-06-01',
-  summary: '这是帖子内容的简要介绍',
-  content: '这是帖子内容的这是帖子内容的这是帖子内容的这是帖子内容的这是帖子内容的这是帖子内容的这是帖子内容的,这是帖子内容的这是帖子内容的这是帖子内容的,这是帖子内容的这是帖子内容的这是帖子内容的这是帖子内容的.',
-  author_name: '张三哈哈哈',
-  author_avatar: 'src/static/image.png',
-  page_views: 1234,
-  label: ['前端开发', 'Vue.js'],
-  cover_avatar: 'src/static/1.jpg',
-  type: '原创',
-  visible_range: '公开',
-  like_count: 456,
-  collect_count: 78,
-  comment_count: 2,
-  subject: '计算机',
-  sub_classify: '前端',
-  is_followed: true
-})
 const forumPosts = reactive({
-  list: [forumPost]
+  list: []
 })
 const collationWay = ref('time')
 // 切换排序方式
 const switchCollationWay = (way) => {
   collationWay.value = way
+  getUserPostsByTime()
 }
-const getUserPostsByTimeApi = '/api/getUserPostsByTime'
+const getUserPostsByTimeApi = '/api/getUserPostsById'
 const searchKey = ref('')
 const getUserPostsByTime = async () => {
   try {
@@ -171,7 +159,10 @@ const getUserPostsByTime = async () => {
               userId: userId.value,
               collation: collationWay.value,
               searchKey: searchKey.value
-          }
+          }, headers: {
+              'token': JWT_TOKEN,
+              'Content-Type': 'application/x-www-form-urlencoded'
+            }
       })
       if(response.data.code === 1) {
           forumPosts.list = response.data.data
@@ -183,8 +174,26 @@ const getUserPostsByTime = async () => {
   }
 }
 
+// 帖子浏览量增加
+const incPageViewsByIdApi = '/api/incPageViewsById'
+const incPageViewsById = async (forumId) => {
+  try {
+    await axios.post(incPageViewsByIdApi, {
+      id: forumId
+    }, {
+      headers: {
+        'token': JWT_TOKEN,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+    });
+  } catch (error) {
+    ElMessage.error('增加页面访问量失败');
+  }
+}
+
 // 跳转帖子详情
 const goToPostDetail = (forumId) => {
+  incPageViewsById(forumId);
   router.push({
     path: '/forumDetail',
     query: {
@@ -194,19 +203,21 @@ const goToPostDetail = (forumId) => {
 }
 
 // 标签搜索
-const forumLabelSearch = (label) => {
-  router.push({
-    path: '/forumHomePage',
-    query: {
-      label: label
-    }
-  })
-}
+// const forumLabelSearch = (label) => {
+//   router.push({
+//     path: '/initialForum',
+//     query: {
+//       label: label
+//     }
+//   })
+// }
 
 onMounted(() => {
   userId.value = router.currentRoute.value.query.userId
   getCurrentUserInfo()
   checkUserInfoById()
+  checkFocusStatus()
+  getUserPostsByTime()
 })
 
 </script>
@@ -229,10 +240,8 @@ onMounted(() => {
           class="follow-btn" 
           :class="{ 'followed': checkUserInfo.focusStatus === 1 || checkUserInfo.focusStatus === 3 }"
           @click="changeFollowStatus">
-          <span v-if="checkUserInfo.focusStatus == 0">关注</span>
-          <span v-else-if="checkUserInfo.focusStatus == 1">已关注</span>
-          <span v-else-if="checkUserInfo.focusStatus == 2">关注</span>
-          <span v-else-if="checkUserInfo.focusStatus == 3">相互关注</span>
+          <span v-if="!checkUserInfo.focusStatus">关注</span>
+          <span v-else>已关注</span>
         </button>
         
         <div class="follow-stats">
@@ -317,7 +326,7 @@ onMounted(() => {
       <div class="posts-container">
         <div class="forum-posts-container">
           <div class="forum-posts">
-            <div v-for="post in forumPosts.list" :key="post.forum_id" class="forum-post">
+            <div v-for="post in forumPosts.list" :key="post.id" class="forum-post">
               <div class="forum-main">
                 <!-- 发帖用户信息 -->
                 <div class="forum-userInfo">
@@ -331,23 +340,23 @@ onMounted(() => {
                 </div>
                 
                 <!-- 帖子标题和简介 -->
-                <div class="forum-content" @click="goToPostDetail(post.forum_id)">
+                <div class="forum-content" @click="goToPostDetail(post.id)">
                   <h2 class="forum-title">{{ post.title }}</h2>
                   <p class="forum-summary">{{ post.summary }}</p>
                 </div>
                 
                 <!-- 帖子数据展示 -->
                 <div class="forum-data">
-                  <span v-for="label in post.label" :key="label" class="forum-label" @click="forumLabelSearch(label)">#{{ label }}</span>
-                  <span class="forum-viewCount" @click="goToPostDetail(post.forum_id)">浏览量:{{ post.page_views }}</span>
-                  <span class="forum-replyCount" @click="goToPostDetail(post.forum_id)">评论量:{{ post.comment_count }}</span>
-                  <span class="forum-likeCount" @click="goToPostDetail(post.forum_id)">点赞量:{{ post.like_count }}</span>
-                  <span class="forum-collectCount" @click="goToPostDetail(post.forum_id)">收藏量:{{ post.collect_count }}</span>
+                  <span class="forum-label" @click="goToPostDetail(post.id)">#{{ post.label }}</span>
+                  <span class="forum-viewCount" @click="goToPostDetail(post.id)">浏览量:{{ post.page_views }}</span>
+                  <span class="forum-replyCount" @click="goToPostDetail(post.id)">评论量:{{ post.comment_count }}</span>
+                  <span class="forum-likeCount" @click="goToPostDetail(post.id)">点赞量:{{ post.like_count }}</span>
+                  <span class="forum-collectCount" @click="goToPostDetail(post.id)">收藏量:{{ post.collect_count }}</span>
                 </div>
               </div>
               
               <!-- 帖子封面图,右侧 -->
-              <div class="forum-coverAvatar" @click="goToPostDetail(post.forum_id)">
+              <div class="forum-coverAvatar" @click="goToPostDetail(post.id)">
                 <img :src="post.cover_avatar" alt="帖子封面" class="cover-avatar-img"/>
               </div>
             </div>

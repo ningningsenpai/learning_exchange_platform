@@ -386,7 +386,7 @@ const goToReleaseForum = () => {
 // 跳转创作者主页
 const goToCreatorHomePage = () => {
   router.push({
-    path: '/forumHomePage',
+    path: '/homePage',
     query: {
     }
   })
@@ -566,7 +566,7 @@ onMounted(() => {
 
 /* 侧边用户信息 */
 .sider-userInfo {
-  height: 8%;
+  height: 70PX;
   background-color: rgb(234, 252, 245);
   display: flex;
   flex-direction: row;
@@ -574,8 +574,8 @@ onMounted(() => {
 }
 
 .userInfo-avatar {
-  height: 90%;
-  width: auto;
+  height: 50px;
+  width: 50PX;
   margin: 0 10px;
   border-radius: 50%;
 }
@@ -607,6 +607,7 @@ onMounted(() => {
 /* 侧边优秀创作者 */
 .sider-OutstandingCreator {
   height: 40%;
+  max-height: 250px;
   background-color: rgb(189, 252, 231);
   margin: 10px 0;
   padding: 12px;
@@ -722,6 +723,8 @@ onMounted(() => {
 /* 侧边热门话题 */
 .sider-OutstandingTopic {
   height: 51%;
+  max-height: 300px;
+  min-height: 250px;
   background-color: rgb(181, 248, 226);
   padding: 12px;
   border-radius: 10px;
@@ -1118,6 +1121,7 @@ onMounted(() => {
 /* 论坛帖子展示区域 */
 .forum-posts {
   flex: 1;
+  max-height: 500px;
   overflow-y: auto;
   padding: 10px 20px;
 }
